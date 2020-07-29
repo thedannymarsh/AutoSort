@@ -11,7 +11,7 @@ Created on Mon Apr 13 10:08:58 2020
 
 @author: Di Lorenzo Tech
 """
-
+import pandas as pd
 import os
 import shutil
 import sys
@@ -33,14 +33,14 @@ from datetime import date
 
 
 
-def infofile(pl2_filename,path,sort_time,AS_file,params):
+def infofile(pl2_filename,path,sort_time,AS_file):
     config = configparser.ConfigParser()
     config['METADATA']={'Pl2 File':pl2_filename, 'Run Time':sort_time, 'Creator Script': AS_file,'Run Date':date.today().strftime("%m/%d/%y")}
     config['PARAMS USED']={'Coming': 'Soon'}
     with open(path+'/'+os.path.splitext(pl2_filename)[0]+'_'+'sort.info','w') as infofile:
         config.write(infofile)
 
-
+ 
 def pl2_to_h5(filename,filedir,min_licks=1000):
     
     ##################  Functions  ######################
@@ -280,9 +280,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     
     # Change directory to the folder containing the hdf5 files
     os.chdir(filedir[0][:-1])
-    
-    # Get the names of all files in the current directory
-    filelist = os.listdir('./')
 
     # find the hdf5 (.h5) file
     hdf5_name = filename[:-1] + '.h5'
@@ -332,9 +329,10 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     # Open up hdf5 file, and load this electrode number
     hf5 = tables.open_file(hdf5_name, 'r')
     try:
-        exec('globals() ["spkc"] = hf5.root.SPKC.SPKC%02d[:]' % electrode_num)
+        spkc=getattr(hf5.root.SPKC,'SPKC'+f'{electrode_num:02d}')[:]
     except:
         hf5.close()
+        print("There was an error getting electrode data.")
         return
     finally: hf5.close()
     
@@ -488,7 +486,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             for cluster in range(i+3):
                 fig = plt.figure()
                 cluster_points = np.where(predictions[:] == cluster)[0]
-                
                 for other_cluster in range(i+3):
                     mahalanobis_dist = []
                     other_cluster_mean = model.means_[other_cluster, :]
@@ -499,19 +496,40 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                     y,binEdges=np.histogram(mahalanobis_dist)
                     bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
                     plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
-                                
+                    
                 plt.xlabel('Mahalanobis distance')
                 plt.ylabel('Frequency')
                 plt.legend(loc = 'upper right', fontsize = 8)
                 plt.title('Mahalanobis distance of Cluster %i from all other clusters' % cluster)
-                fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, cluster))
+                fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/OLD_Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, cluster))
                 plt.close("all")
-            
+                
+                #correct mahalanobis calculations
+            for ref_cluster in range(i+3):
+                fig = plt.figure()
+                ref_mean = model.means_[ref_cluster, :]
+                ref_covar_I = linalg.inv(model.covariances_[ref_cluster, :, :])
+                for other_cluster in range(i+3):
+                    mahalanobis_dist = []
+                    other_cluster_points = np.where(predictions[:] == other_cluster)[0]
+                    for point in other_cluster_points:
+                          mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
+                    # Plot histogram of Mahalanobis distances
+                    y,binEdges=np.histogram(mahalanobis_dist)
+                    bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+                    plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
+                plt.xlabel('Mahalanobis distance')
+                plt.ylabel('Frequency')
+                plt.legend(loc = 'upper right', fontsize = 8)
+                plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
+                fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
+                plt.close("all")
             
             # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
             # Additionally plot the ISI distribution of each cluster 
             os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs' % ((electrode_num+1), i+3))
             x = np.arange(len(slices_dejittered[0])/10) + 1
+            ISIList=[]
             for cluster in range(i+3):
                 cluster_points = np.where(predictions[:] == cluster)[0]
         
@@ -531,14 +549,37 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.title("2ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 2.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 2.0)[0]), len(cluster_times)) + '\n' + "1ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 1.0)[0]), len(cluster_times)))
                 fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs/Cluster%i_ISIs' % ((electrode_num+1), i+3, cluster))
                 plt.close("all") 
+                ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
             
+            #Get isolation statistics for each solution
             isodf=clust.isoinfo(data,predictions,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
+            isodf.insert(1,'ISIs (%)',ISIList) #need to gather ISI's into list
+            isodf.insert(0,'Solution',i+3) 
+            isodf.insert(0,'Channel',electrode_num+1) 
+            isodf.insert(0,'File',hdf5_name[:-3]) 
+            isodf.insert(0,'IsoRating','TBD') 
+            isodf=isodf.round({'IsoIBG':3,'IsoINN':3,'L-Ratio':3,'IsoD':3,})
+            isodf.to_csv(hdf5_name[:-3] +'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1, i+3),index=False)
 
-
-def superplots(filename,maxclust):
+            #output this all in a plot in the plots folder and replace the ISI plot in superplots
+            for cluster in range(i+3):
+                text='1 ms ISIs (%): \nIso-BG: \nIsoi-NN: \nNNClust: \nIsoD: \nL-Ratio: '
+                text2='{}\n{}\n{}\n{}\n{}\n{}'.format(isodf['ISIs (%)'][cluster], isodf['IsoIBG'][cluster],isodf['IsoINN'][cluster],
+                                                      isodf['NNClust'][cluster],isodf['IsoD'][cluster],isodf['L-Ratio'][cluster])
+                blank=np.ones((480,640,3),np.uint8)*255
+                cv2_im_rgb=cv2.cvtColor(blank,cv2.COLOR_BGR2RGB)   #convert to color space pillow can use
+                pil_im=Image.fromarray(cv2_im_rgb)  #get pillow image
+                draw=ImageDraw.Draw(pil_im)   #create draw object for text
+                font=ImageFont.truetype(os.path.split(__file__)[0]+"/bin/arial.ttf", 60)  #use arial font
+                draw.multiline_text((35, 20), text, font=font,fill=(0,0,0,255),spacing=20,align='right')   #draw the text
+                draw.multiline_text((420, 20), text2, font=font,fill=(0,0,0,255),spacing=20)   #draw the text
+                isoimg=cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)  #convert back to openCV image
+                cv2.imwrite(hdf5_name[:-3] +'/Plots/{}/{}_clusters_waveforms_ISIs/Cluster{}_Isolation.png'.format(electrode_num+1, i+3, cluster),isoimg) #save the image
+            
+def superplots(full_filename,maxclust):
     #This function takes all of the plots and conglomerates them
-    path=os.path.splitext(filename)[0]+'/Plots'  #The path holding the plots to be run on
-    outpath=os.path.splitext(filename)[0]+'/superplots' #output path for superplots
+    path=os.path.splitext(full_filename)[0]+'/Plots'  #The path holding the plots to be run on
+    outpath=os.path.splitext(full_filename)[0]+'/superplots' #output path for superplots
     if os.path.isdir(outpath): #if the path for plots exists remove it
         shutil.rmtree(outpath)
     os.mkdir(outpath) #make the output path
@@ -556,7 +597,7 @@ def superplots(filename,maxclust):
                     wf=cv2.imread(currentpath+'/'+str(soln)+'_clusters_waveforms_ISIs/Cluster'+str(cluster)+'_waveforms.png')
                     if not np.shape(mah)[0:2]==(1200,1600):
                         wf=cv2.resize(wf,(1600,1200))
-                    isi=cv2.imread(currentpath+'/'+str(soln)+'_clusters_waveforms_ISIs/Cluster'+str(cluster)+'_ISIs.png')
+                    isi=cv2.imread(currentpath+'/'+str(soln)+'_clusters_waveforms_ISIs/Cluster'+str(cluster)+'_Isolation.png')
                     if not np.shape(isi)[0:2]==(480,640):
                         isi=cv2.resize(isi,(640,480))
                     blank=np.ones((240,640,3),np.uint8)*255 #make whitespace for info
@@ -572,3 +613,31 @@ def superplots(filename,maxclust):
                     cv2.imwrite(finalpath+'/Cluster_'+str(cluster)+'.png',im_all) #save the image
         except Exception as e:
             print("Could not create superplots for channel " +channel+ ". Encountered the following error: "+e)
+            
+
+def compile_isoi(full_filename,maxclust):
+    path=os.path.splitext(full_filename)[0]+'/clustering_results'
+    file_isoi=pd.DataFrame()
+    errorfiles=pd.DataFrame(columns=['channel','solution','file'])
+    for channel in os.listdir(path):
+        channel_isoi=pd.DataFrame()
+        for soln in range(1,maxclust+1):
+            try:
+                channel_isoi=channel_isoi.append(pd.read_csv(path +'/{}/clusters{}/isoinfo.csv'.format(channel, soln)))
+            except Exception as e:
+                print(e)
+                errorfiles=errorfiles.append((channel[-1],soln,os.path.split(path)[-1]))
+        channel_isoi.to_csv('{}/{}/{}_iso_info'.format(path,channel,channel))
+        file_isoi.append(channel_isoi)
+    with pd.ExcelWriter(path+'/{}compiled_isoi'.format(os.path.split(path)[-1]),engine='xlsxwriter') as outwrite:
+        file_isoi.to_excel(outwrite,sheet_name='iso_data')
+        #add some sort of ISI check here
+        if errorfiles.size==0:
+            errorfiles.append(['nan','nan','nan'])
+        errorfiles.to_excel(outwrite,sheet_name='errors')
+        workbook  = outwrite.book
+        worksheet = outwrite.sheets['iso_data']
+        redden=workbook.add_format().set_bg_color('red')
+        worksheet.conditional_format('F2:D{}'.format(file_isoi.shape()[0]+1),{'type':'cell','criteria':'greater than','value':.5,'format':redden})
+        outwrite.save() #need to get the correct ISI column here
+        

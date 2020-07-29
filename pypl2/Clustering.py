@@ -111,7 +111,7 @@ def isoinfo(data,predictions,isodir='temporary_iso_info'):
     subprocess.run([os.path.split(__file__)[0]+'/bin/isorat.exe',"featuredata.txt",'isorat_output.txt']) #run isorat (produces isod and l ratio)
     subprocess.run([os.path.split(__file__)[0]+'/bin/isoi.exe',"featuredata.txt",'isoi_output.txt']) #run isoi
     iso=pd.concat((pd.read_csv('isoi_output.txt',sep=' ',names=['IsoIBG','IsoINN','NNClust']),pd.read_csv('isorat_output.txt',sep=' ',names=['IsoD','L-Ratio'])),axis=1)
-    iso=iso.add([0,0,0,0,-1])
+    iso=iso.add([0,0,-1,0,0])
     iso.insert(0,'Cluster',iso.index) #reads and packages the data in a usable dataframe
     os.chdir(olddir)
     shutil.rmtree(isodir)

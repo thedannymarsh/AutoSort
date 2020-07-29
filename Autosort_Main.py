@@ -7,9 +7,8 @@ Created on Wed Mar 25 15:06:04 2020
 import sys
 import os
 import shutil
-import pypl2.Autosorting_3_1_2 as AS
+import pypl2.Autosorting as AS
 import time
-import sys               # Used to exit program when things go wrong
 import multiprocessing   # Used for multiprocessing to speed up analyses
 import math              # Used to round values
 import tables            # Used to read the hdf5 files
@@ -18,14 +17,15 @@ import warnings
 
 
 
+
 to_run_path=r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted' #path where files to run on were placed
 running_path=r'R:\Dannymarsh Sorting Emporium\running_files' #path where files will be stored while the script is running on them
 outpath=r'R:\Dannymarsh Sorting Emporium\Results' #path where output will be generated
 completed_path=r'R:\Dannymarsh Sorting Emporium\completed_pl2' #path where files that have completed running will be placed
 
-usepaths=1 #set equal to 0 if you want to ignore the above paths and use the current location for running and output (identical functionality to old autosort)
+usepaths=0 #set equal to 0 if you want to ignore the above paths and use the below path for running and output (similar functionality to old autosort)
 
-elsepath=r'D:\VgX\Files\Raw Files VgX' #place your file containing path here if usepaths=0
+elsepath=r'R:\Daniel\Current Projects\Autosort Isolation Metric\ISOI' #place your file containing path here if 
 
 num_cpu=8
 
@@ -51,7 +51,7 @@ weekday_n=2 #number of files to run if tomorrow is a weekday
 
 weekend_n=6 #number of files to run because it's the weekend baby!
 
-manual_or_auto='Auto' #Set to "Auto" if you are activating the script each evening with a batch script, if you are running by hand set to "Manual"
+manual_or_auto='Manual' #Set to "Auto" if you are activating the script each evening with a batch script, if you are running by hand set to "Manual"
 
 manual_n=1 #number of files to run if running as manual
 
