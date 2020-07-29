@@ -14,6 +14,9 @@ Created on Mon Apr 13 10:08:58 2020
 import os
 import configparser
 import sys
+import time
+
+config_ver=1
 
 def do_the_config(path=''):
     if os.name=='posix':
@@ -36,12 +39,13 @@ def default_config(path):
     config['Paths']={'Pl2 To-Run Path':r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted','Running Path':r'R:\Dannymarsh Sorting Emporium\running_files',
                      'Results Path':r'R:\Dannymarsh Sorting Emporium\Results','Completed Pl2 Path':r'R:\Dannymarsh Sorting Emporium\completed_pl2',
                      'Use Paths':'1','Else Path':''}
-    config['Clustering']={'Max Clusters':'7','Max Iterations':'1000','Convergence Criterion':'.0001','Random Restarts':'10'}
+    config['Clustering']={'Max Clusters':'7','Max Iterations':'1000','Convergence Criterion':'.0001','Random Restarts':'10','L-ratio Cutoff':'.1'}
     config['Signal']={'Disconnect Voltage':'1500','Max Breach Rate':'.2','Max Breach Count':'10','Max Breach Avg.':'20','Intra-Cluster Cutoff':'3'}
     config['Filtering']={'Low Cutoff':'300', 'High Cutoff':'6000'}
     config['Spike']={'Pre-time':'.2','Post-time':'.6','Sampling Rate':'40000'}
     config['Std Dev']={'Spike Detection':'2.0','Artifact Removal':'10.0'}
     config['PCA']={'Variance Explained':'.95','Use Percent Variance':'1','Principal Component n':'5'}
+    config['Version']={'config version':str(config_ver)}
     with open(path,'w') as configfile:
         config.write(configfile)
 
@@ -50,12 +54,13 @@ def linux_config(path):
     config['Run Settings']={'Resort Limit':'3','Cores Used':'8','N-Files':'1'}
     config['Paths']={'h5 To-Run Path':'/data/home/dmarshal/Autosort/h5_for_run','Running Path':'/data/home/dmarshal/Autosort/running_files',
                      'Results Path':'/data/home/dmarshal/Autosort/Results'}
-    config['Clustering']={'Max Clusters':'7','Max Iterations':'1000','Convergence Criterion':'.0001','Random Restarts':'10'}
+    config['Clustering']={'Max Clusters':'7','Max Iterations':'1000','Convergence Criterion':'.0001','Random Restarts':'10','L-ratio Cutoff':'.1'}
     config['Signal']={'Disconnect Voltage':'1500','Max Breach Rate':'.2','Max Breach Count':'10','Max Breach Avg.':'20','Intra-Cluster Cutoff':'3'}
     config['Filtering']={'Low Cutoff':'300', 'High Cutoff':'6000'}
     config['Spike']={'Pre-time':'.2','Post-time':'.6','Sampling Rate':'40000'}
     config['Std Dev']={'Spike Detection':'2.0','Artifact Removal':'10.0'}
     config['PCA']={'Variance Explained':'.95','Use Percent Variance':'1','Principal Component n':'5'}
+    config['Version']={'config version':str(config_ver)}
     with open(path,'w') as configfile:
         config.write(configfile)
         
@@ -65,6 +70,10 @@ def read_config(path):
     config.read(path)
     for key,value in config._sections.items():
         params.update(value)
+    if config_ver!=int(params['config version']):
+        os.rename(path,os.path.splitext(path)[0]+str(time.time())+'.txt')
+        default_config(path)
+        sys.exit('Config version updated, config file reset to default, your original config file has been renamed. Find the new config file here: '+path)
     return params
     
     

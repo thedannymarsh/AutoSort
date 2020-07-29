@@ -33,10 +33,10 @@ from datetime import date
 
 
 
-def infofile(pl2_filename,path,sort_time,AS_file):
+def infofile(pl2_filename,path,sort_time,AS_file,params):
     config = configparser.ConfigParser()
     config['METADATA']={'Pl2 File':pl2_filename, 'Run Time':sort_time, 'Creator Script': AS_file,'Run Date':date.today().strftime("%m/%d/%y")}
-    config['PARAMS USED']={'Coming': 'Soon'}
+    config['PARAMS USED']=params
     with open(path+'/'+os.path.splitext(pl2_filename)[0]+'_'+'sort.info','w') as infofile:
         config.write(infofile)
 
@@ -305,25 +305,26 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     os.mkdir(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1))
     
     # Assign the parameters to variables
-    max_clusters = int(params[0])
-    num_iter = int(params[1])
-    thresh = float(params[2])
-    num_restarts = int(params[3])
-    voltage_cutoff = float(params[4])
-    max_breach_rate = float(params[5])
-    max_secs_above_cutoff = int(params[6])
-    max_mean_breach_rate_persec = float(params[7])
-    wf_amplitude_sd_cutoff = int(params[8])
-    bandpass_lower_cutoff = float(params[9])
-    bandpass_upper_cutoff = float(params[10])
-    spike_snapshot_before = float(params[11])
-    spike_snapshot_after = float(params[12])
-    sampling_rate = float(params[13])
-    STD=params[14]
-    cutoff_std=params[15]
-    pvar=params[16]
-    usepvar=params[17]
-    userpc=params[18]
+    max_clusters = int(params['max clusters'])
+    num_iter = int(params['max iterations'])
+    thresh = float(params['convergence criterion'])
+    num_restarts = int(params['random restarts'])
+    voltage_cutoff = float(params['disconnect voltage'])
+    max_breach_rate = float(params['max breach rate'])
+    max_secs_above_cutoff = int(params['max breach count'])
+    max_mean_breach_rate_persec = float(params['max breach avg.'])
+    wf_amplitude_sd_cutoff = float(params['intra-cluster cutoff'])
+    bandpass_lower_cutoff = float(params['low cutoff'])
+    bandpass_upper_cutoff = float(params['high cutoff'])
+    spike_snapshot_before = float(params['pre-time'])
+    spike_snapshot_after = float(params['post-time'])
+    sampling_rate = float(params['sampling rate'])
+    STD=float(params['spike detection'])
+    cutoff_std=float(params['artifact removal'])
+    pvar=float(params['variance explained'])
+    usepvar=int(params['use percent variance'])
+    userpc=int(params['principal component n'])
+    min_L=float(params['l-ratio cutoff'])
     
     
     # Open up hdf5 file, and load this electrode number
@@ -552,7 +553,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
             
             #Get isolation statistics for each solution
-            isodf=clust.isoinfo(data,predictions,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
+            isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
             isodf.insert(1,'ISIs (%)',ISIList) #need to gather ISI's into list
             isodf.insert(0,'Solution',i+3) 
             isodf.insert(0,'Channel',electrode_num+1) 

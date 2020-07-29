@@ -8,7 +8,8 @@ import os
 import shutil
 import sys
 sys.path.insert(1, '/data/home/dmarshal/Autosort/pypl2')
-import Autosorting_3_1_1 as AS
+import Autosorting as AS
+import config_handler
 import time
 import multiprocessing   # Used for multiprocessing to speed up analyses
 import math              # Used to round values
@@ -17,35 +18,17 @@ import traceback
 import warnings
 
 if __name__ == '__main__':
+    params=config_handler.do_the_config()
     print('Running Script: '+__file__)
     try:
-        n_files=1
+        n_files=params['n-files']
+        to_run_path=params['h5 to-run path'] #path where files to run on were placed
+        running_path=params['running path'] #path where files will be stored while the script is running on them
+        outpath=params['results path'] #path where output will be generated
+        num_cpu=params['cores used']
+        resort_limit=params['resort limit']
         filedates=[]
         runfiles=[]
-        to_run_path='/data/home/dmarshal/Autosort/h5_for_run' #path where files to run on were placed
-        running_path='/data/home/dmarshal/Autosort/running_files' #path where files will be stored while the script is running on them
-        outpath='/data/home/dmarshal/Autosort/Results' #path where output will be generated
-        num_cpu=8
-        resort_limit=3
-        # Clustering parameters: [Maximum number of clusters, Maximum number of iterations, Convergence criterion, Number of random restarts for GMM]
-        clustering_params = [7, 1000, .0001, 10]
-        # Data parameters: [Voltage cutoff for disconnected headstage noise (in uV), Maximum rate of cutoff breaches per sec, Maximum number of allowed seconds with at least 1 cutoff breach, 
-        #                   Maximum allowed average number of cutoff breaches per sec, Intra-cluster waveform amplitude SD cutoff]
-        data_params = [1500, .2, 10, 20, 3]
-        # Bandpass parameters: [Lower frequency cutoff (Hz), Upper frequency cutoff (Hz)]
-        bandpass_params = [300, 6000]
-        #spike snapshot: [Time before spike minimum (ms) (usually 0.2), Time after spike minimum (ms) (usually 0.6),sampling rate (usually 40kHz=40000)]
-        spike_snapshot = [.2,.6,40000]
-        #std_params: [stdev below mean electrode value for detecting a spike, stdev from mean value for eliminating high amplitude artifact]
-        std_params=[2.0,10.0]
-        #principal component params: [percent variance to be explained by principal components for use in GMM, 
-        #                               whether to use percent variance or a flat number of components 9use 1 for percent, 0 otherwise),
-        #                               number of principal components to use for GMM if not using percent (must enter a value even if not using)]
-        pca_params=[.95,1,5]
-
-
-        params=clustering_params+data_params+bandpass_params+spike_snapshot+std_params+pca_params 
-        
         checkfiles=os.listdir(to_run_path) #get the names of the files to be run
         iterfiles=checkfiles.copy() #filelist for iteration
         for i in range(0,len(iterfiles)):
@@ -152,6 +135,5 @@ if __name__ == '__main__':
             shutil.move(running_path+'/'+os.path.splitext(file)[0]+'.h5',outpath+'/'+os.path.splitext(file)[0]+'.h5')
             shutil.move(running_path+'/'+os.path.splitext(file)[0],outpath+'/'+os.path.splitext(file)[0].replace(" ",'_'))
         
-                  
     print("done")
         

@@ -99,7 +99,7 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 
     return g[best_fit], predictions, np.min(bayesian)
 
-def isoinfo(data,predictions,isodir='temporary_iso_info'):   
+def isoinfo(data,predictions,isodir='temporary_iso_info',Lrat_cutoff=.1):   
     #runs isolation information processing on feature data, and returns cluster isolation data in the form of a pandas dataframe
     os.mkdir(isodir) #make the temp directory
     olddir=os.getcwd()
@@ -109,9 +109,16 @@ def isoinfo(data,predictions,isodir='temporary_iso_info'):
     featuredata=featuredata.astype({'Cluster':int})
     featuredata.to_csv(isodir+'/featuredata.txt',header=True, index=False, sep='\t') 
     subprocess.run([os.path.split(__file__)[0]+'/bin/isorat.exe',"featuredata.txt",'isorat_output.txt']) #run isorat (produces isod and l ratio)
-    subprocess.run([os.path.split(__file__)[0]+'/bin/isoi.exe',"featuredata.txt",'isoi_output.txt']) #run isoi
-    iso=pd.concat((pd.read_csv('isoi_output.txt',sep=' ',names=['IsoIBG','IsoINN','NNClust']),pd.read_csv('isorat_output.txt',sep=' ',names=['IsoD','L-Ratio'])),axis=1)
-    iso=iso.add([0,0,-1,0,0])
+    isorat_df=pd.read_csv('isorat_output.txt',sep=' ',names=['IsoD','L-Ratio'])
+    if (isorat_df['L-Ratio']>Lrat_cutoff).all() == False:
+        subprocess.run([os.path.split(__file__)[0]+'/bin/isoi.exe',"featuredata.txt",'isoi_output.txt']) #run isoi
+        iso=pd.concat((pd.read_csv('isoi_output.txt',sep=' ',names=['IsoIBG','IsoINN','NNClust']),isorat_df),axis=1)
+        iso=iso.add([0,0,-1,0,0])
+    else:
+        isorat_df.insert(0,'NNClust','nan')
+        isorat_df.insert(0,'IsoINN','nan')
+        isorat_df.insert(0,'IsoIBG','nan')
+        iso=isorat_df
     iso.insert(0,'Cluster',iso.index) #reads and packages the data in a usable dataframe
     os.chdir(olddir)
     shutil.rmtree(isodir)
