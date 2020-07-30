@@ -34,6 +34,7 @@ from datetime import date
 
 
 def infofile(pl2_filename,path,sort_time,AS_file,params):
+    #dumps run info to a .info file
     config = configparser.ConfigParser()
     config['METADATA']={'Pl2 File':pl2_filename, 'Run Time':sort_time, 'Creator Script': AS_file,'Run Date':date.today().strftime("%m/%d/%y")}
     config['PARAMS USED']=params
@@ -564,10 +565,10 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
 
             #output this all in a plot in the plots folder and replace the ISI plot in superplots
             for cluster in range(i+3):
-                text='1 ms ISIs (%): \nIso-BG: \nIsoi-NN: \nNNClust: \nIsoD: \nL-Ratio: '
+                text='1 ms ISIs (%): \nIsoI-BG: \nIsoI-NN: \nNNClust: \nIsoD: \nL-Ratio: ' #package text to be plotted
                 text2='{}\n{}\n{}\n{}\n{}\n{}'.format(isodf['ISIs (%)'][cluster], isodf['IsoIBG'][cluster],isodf['IsoINN'][cluster],
                                                       isodf['NNClust'][cluster],isodf['IsoD'][cluster],isodf['L-Ratio'][cluster])
-                blank=np.ones((480,640,3),np.uint8)*255
+                blank=np.ones((480,640,3),np.uint8)*255 #initialize empty whihte image
                 cv2_im_rgb=cv2.cvtColor(blank,cv2.COLOR_BGR2RGB)   #convert to color space pillow can use
                 pil_im=Image.fromarray(cv2_im_rgb)  #get pillow image
                 draw=ImageDraw.Draw(pil_im)   #create draw object for text
@@ -617,29 +618,31 @@ def superplots(full_filename,maxclust):
             
 
 def compile_isoi(full_filename,maxclust):
+    #compiles all isolation information into one excel file
     path=os.path.splitext(full_filename)[0]+'/clustering_results'
     file_isoi=pd.DataFrame()
     errorfiles=pd.DataFrame(columns=['channel','solution','file'])
-    for channel in os.listdir(path):
+    for channel in os.listdir(path): #for each channel
         channel_isoi=pd.DataFrame()
-        for soln in range(3,maxclust+1):
-            try:
+        for soln in range(3,maxclust+1): #for each solution
+            try: #get the isoi info for this solution and add it to the channel data
                 channel_isoi=channel_isoi.append(pd.read_csv(path +'/{}/clusters{}/isoinfo.csv'.format(channel, soln)))
-            except Exception as e:
+            except Exception as e: #if an error occurs, add it to the list of error files
                 print(e)
                 errorfiles=errorfiles.append([{'channel':channel[-1],'solution':soln,'file':os.path.split(path)[0]}])
-        channel_isoi.to_csv('{}/{}/{}_iso_info.csv'.format(path,channel,channel),index=False)
-        file_isoi=file_isoi.append(channel_isoi)
+        channel_isoi.to_csv('{}/{}/{}_iso_info.csv'.format(path,channel,channel),index=False) #output data for the whole channel to the proper folder
+        file_isoi=file_isoi.append(channel_isoi) #add this channel's info to the whole file info
     with pd.ExcelWriter(os.path.split(path)[0]+'/{}_compiled_isoi.xlsx'.format(os.path.split(path)[-1]),engine='xlsxwriter') as outwrite:
+        #once the file data is compiled, write to to an excel file
         file_isoi.to_excel(outwrite,sheet_name='iso_data',index=False)
-        #add some sort of ISI check here
-        if errorfiles.size==0:
+        if errorfiles.size==0: #if there are no error csv's add some nans and output to the excel
             errorfiles=errorfiles.append([{'channel':'nan','solution':'nan','file':'nan'}])
         errorfiles.to_excel(outwrite,sheet_name='errors')
         workbook  = outwrite.book
         worksheet = outwrite.sheets['iso_data']
         redden= workbook.add_format({'bg_color':'red'})
         yellen = workbook.add_format({'bg_color':'yellow'})
+        #add conditional formatting based on ISI's
         worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>1','format':redden}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
         worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>.5','format':yellen}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
         outwrite.save() #need to get the correct ISI column here
