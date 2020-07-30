@@ -115,9 +115,13 @@ if __name__ == '__main__':
             if len(bad_runs)>0: #If there are bad runs don't make superplots
                 warnings.warn("Warning: Sort unsuccessful on at least one channel!")
             else: #else make the superplots
-                try: AS.superplots(filename,params[0])
+                try: AS.superplots(filename,int(params['max clusters']))
                 except Exception as e: 
                     warnings.warn("Warning: superplots unsuccessful!")
+                    print(e)
+                try: AS.compile_isoi(filename,int(params['max clusters']))
+                except Exception as e: 
+                    warnings.warn("Warning: isolation information compilation unsuccessful!")
                     print(e)
             sort_time=time.time()-filestart
             print("That file ran for",(sort_time/3600),"hours.")        

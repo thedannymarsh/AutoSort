@@ -5,7 +5,8 @@ Created on Wed Mar 25 15:06:04 2020
 @author: Di Lorenzo Tech
 """
 import os
-import pypl2.Autosorting_3_1_2 as AS
+import pypl2.Autosorting as AS
+import pypl2.config_handler
 import time
 import tables
 import warnings
@@ -14,30 +15,11 @@ import traceback
 
 path=r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted' #place your file containing path here if usepaths=0
 
-# Clustering parameters: [Maximum number of clusters, Maximum number of iterations, Convergence criterion, Number of random restarts for GMM]
-clustering_params = [7, 1000, .0001, 10]
-# Data parameters: [Voltage cutoff for disconnected headstage noise (in uV), Maximum rate of cutoff breaches per sec, Maximum number of allowed seconds with at least 1 cutoff breach, 
-#                   Maximum allowed average number of cutoff breaches per sec, Intra-cluster waveform amplitude SD cutoff]
-data_params = [1500, .2, 10, 20, 3]
-# Bandpass parameters: [Lower frequency cutoff (Hz), Upper frequency cutoff (Hz)]
-bandpass_params = [300, 6000]
-#spike snapshot: [Time before spike minimum (ms) (usually 0.2), Time after spike minimum (ms) (usually 0.6),sampling rate (usually 40kHz=40000)]
-spike_snapshot = [.2,.6,40000]
-#std_params: [stdev below mean electrode value for detecting a spike, stdev from mean value for eliminating high amplitude artifact]
-std_params=[2.0,10.0]
-#principal component params: [percent variance to be explained by principal components for use in GMM, 
-#                               whether to use percent variance or a flat number of components 9use 1 for percent, 0 otherwise),
-#                               number of principal components to use for GMM if not using percent (must enter a value even if not using)]
-pca_params=[.95,1,5]
-
-min_licks=1000 #minimum number of licks required to run autosort. If licks are too few the autosort will move on to the next file
-
-### END USER PARAMETERS
-
 if __name__ == '__main__':
     num_cpu=1
     print('Running Script: '+__file__)
-    params=clustering_params+data_params+bandpass_params+spike_snapshot+std_params+pca_params
+    params=pypl2.config_handler.do_the_config()   
+    min_licks=int(params['minimum licks'])
     rerun={}
     runfiles=[file for file in os.listdir(path) if file.endswith('.pl2')]
     for file in runfiles:
@@ -68,13 +50,17 @@ if __name__ == '__main__':
                 AS.Processing(int(rerun_channels[processed])-1,filename,params)
                 processed+=1
             ### Superplots
-            try: AS.superplots(filename,params[0])
+            try: AS.superplots(filename,int(params['max clusters']))
             except Exception as e: 
                 warnings.warn("Warning: superplots unsuccessful!")
                 print(e)
+            try: AS.compile_isoi(filename,int(params['max clusters']))
+            except Exception as e: 
+                warnings.warn("Warning: isolation information compilation unsuccessful!")
+                print(e)
             sort_time=(time.time()-start)/3600
             print("Resort completed.",filename,"ran for",sort_time,"hours.")
-            AS.infofile(file,os.path.splitext(filename)[0],sort_time,__file__)
+            AS.infofile(file,os.path.splitext(filename)[0],sort_time,__file__,params)
         except Exception:
             print("An error occured while sorting " +filename+". The error is as follows:")
             traceback.print_exc()         

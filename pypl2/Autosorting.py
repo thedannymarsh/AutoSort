@@ -17,7 +17,7 @@ import shutil
 import sys
 from pypl2.pypl2api import pl2_ad, pl2_events, pl2_info # Used to obtain info from Pl2 files
 import tables            # Used to read the hdf5 files
-import pypl2.Clustering_2_0_0 as clust # Used to perform clustering analysis
+import pypl2.Clustering as clust # Used to perform clustering analysis
 from scipy.spatial.distance import mahalanobis  # Used to get distance between clusters
 from scipy import linalg                # Used for very fast linear algebra
 import pypl2.Pl2_waveforms_datashader   # Used for waveform collection
@@ -622,23 +622,25 @@ def compile_isoi(full_filename,maxclust):
     errorfiles=pd.DataFrame(columns=['channel','solution','file'])
     for channel in os.listdir(path):
         channel_isoi=pd.DataFrame()
-        for soln in range(1,maxclust+1):
+        for soln in range(3,maxclust+1):
             try:
                 channel_isoi=channel_isoi.append(pd.read_csv(path +'/{}/clusters{}/isoinfo.csv'.format(channel, soln)))
             except Exception as e:
                 print(e)
-                errorfiles=errorfiles.append((channel[-1],soln,os.path.split(path)[-1]))
-        channel_isoi.to_csv('{}/{}/{}_iso_info'.format(path,channel,channel))
-        file_isoi.append(channel_isoi)
-    with pd.ExcelWriter(path+'/{}compiled_isoi'.format(os.path.split(path)[-1]),engine='xlsxwriter') as outwrite:
-        file_isoi.to_excel(outwrite,sheet_name='iso_data')
+                errorfiles=errorfiles.append([{'channel':channel[-1],'solution':soln,'file':os.path.split(path)[0]}])
+        channel_isoi.to_csv('{}/{}/{}_iso_info.csv'.format(path,channel,channel),index=False)
+        file_isoi=file_isoi.append(channel_isoi)
+    with pd.ExcelWriter(os.path.split(path)[0]+'/{}_compiled_isoi.xlsx'.format(os.path.split(path)[-1]),engine='xlsxwriter') as outwrite:
+        file_isoi.to_excel(outwrite,sheet_name='iso_data',index=False)
         #add some sort of ISI check here
         if errorfiles.size==0:
-            errorfiles.append(['nan','nan','nan'])
+            errorfiles=errorfiles.append([{'channel':'nan','solution':'nan','file':'nan'}])
         errorfiles.to_excel(outwrite,sheet_name='errors')
         workbook  = outwrite.book
         worksheet = outwrite.sheets['iso_data']
-        redden=workbook.add_format().set_bg_color('red')
-        worksheet.conditional_format('F2:D{}'.format(file_isoi.shape()[0]+1),{'type':'cell','criteria':'greater than','value':.5,'format':redden})
+        redden= workbook.add_format({'bg_color':'red'})
+        yellen = workbook.add_format({'bg_color':'yellow'})
+        worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>1','format':redden}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
+        worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>.5','format':yellen}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
         outwrite.save() #need to get the correct ISI column here
         
