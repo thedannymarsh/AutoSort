@@ -16,26 +16,26 @@ import configparser
 import sys
 import time
 
-config_ver=1
+config_ver=2
 
 def do_the_config(path=''):
     if os.name=='posix':
-        path=os.path.expanduser('~')+'/Autosort/Autosort_config.ini'
+        path=os.path.expanduser('~')+'/Autosort/Autosort/Autosort_config.ini'
         if not os.path.isfile(path):
             linux_config(path)
         return read_config(path)
     elif os.name=='nt':
         if path=='':
-            path=os.path.expanduser('~')+'\\Documents\\Autosort_config.ini'
+            path=os.path.expanduser('~')+'\\Documents\\Autosort/Autosort_config.ini'
         if not os.path.isfile(path):
             default_config(path)
-            sys.exit('Default configuration file has been created. You can find it in '+path)
+            print('Default configuration file has been created. You can find it in '+path)
         else: return read_config(path)
 
 def default_config(path):
     config=configparser.ConfigParser()
     config['Run Settings']={'Resort Limit':'3','Minimum Licks':'1000','Cores Used':'8',
-                            'Weekday Run':'2','Weekend Run':'6','Run Type':'Auto','Manual Run':'2'}
+                            'Weekday Run':'2','Weekend Run':'8','Run Type':'Auto','Manual Run':'2'}
     config['Paths']={'Pl2 To-Run Path':r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted','Running Path':r'R:\Dannymarsh Sorting Emporium\running_files',
                      'Results Path':r'R:\Dannymarsh Sorting Emporium\Results','Completed Pl2 Path':r'R:\Dannymarsh Sorting Emporium\completed_pl2',
                      'Use Paths':'1','Else Path':''}
@@ -71,9 +71,10 @@ def read_config(path):
     for key,value in config._sections.items():
         params.update(value)
     if config_ver!=int(params['config version']):
-        os.rename(path,os.path.splitext(path)[0]+str(time.time())+'.txt')
+        os.rename(path,os.path.splitext(path)[0]+str(params['config version'])+'.txt')
         default_config(path)
-        sys.exit('Config version updated, config file reset to default, your original config file has been renamed. Find the new config file here: '+path)
-    return params
+        print('Config version updated, config file reset to default, your original config file has been renamed. Find the new config file here: '+path)
+    else:
+        return params
     
     
