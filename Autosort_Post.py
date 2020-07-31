@@ -6,22 +6,25 @@ import ast
 import pylab as plt
 from sklearn.mixture import GaussianMixture
 import pypl2.Pl2_waveforms_datashader
+import pypl2.Clustering as clust
+from pypl2 import config_handler
 import json
-import time
 import shutil
 import sys
-
-reanalyze=0 #1 if you need to delete units or add units to already post-processed files, 0 otherwise
-
-simple_GMM=1 #0 if you want specific control over GMM parameters, 1 otherwise
-
-temp_dir=r'C:\Users\DiLorenzoTech\tmp_python' #directory to temporarily store images, will be deleted when postprocessing is complete
-
-image_size=70
+import pandas as pd
 
 ################################################### End user parameters
 
+sys.exit('DO NOT USE. This script is under construction.')  
+
 #If the image directory does not exit, create it
+params=config_handler.do_the_config()
+
+reanalyze=int(params['reanalyze'])
+simple_GMM=int(params['simple gmm'])
+temp_dir=params['temporary dir']
+image_size=int(params['image size'])
+
 if os.path.isdir(temp_dir):
     shutil.rmtree(temp_dir)
 os.mkdir(temp_dir)
@@ -167,17 +170,9 @@ for files in file_list:
                 # Get the number of clusters in the chosen solution
                 num_clusters = easygui.multenterbox(msg = 'Which solution do you want to choose for electrode %i?' % (electrode_num+1), fields = ['Number of clusters in the solution'])
                 num_clusters = int(num_clusters[0])
-            
-                # Load data from the chosen electrode and solution
-                spike_waveforms = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1))
-                spike_times = np.load('./'+ hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1))
-                pca_slices = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1))
-                energy = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1))
-                amplitudes = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1))
-                predictions = np.load('./'+ hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i/predictions.npy' % ((electrode_num+1), num_clusters))
-    
+ 
                 # Get cluster choices from the chosen solution
-                clusters = easygui.multchoicebox(msg = 'For file %s, electrode %i, in the %i cluster batch, Which clusters do you want to choose?' % (hdf5_name[:-3], electrode_num+1, num_clusters), choices = tuple([str(i) for i in range(int(np.max(predictions) + 1))]))
+                clusters = easygui.multchoicebox(msg = 'For file %s, electrode %i, in the %i cluster batch, Which clusters do you want to choose?' % (hdf5_name[:-3], electrode_num+1, num_clusters), choices = tuple([str(i) for i in range(num_clusters)]))
     	
                 # Check if the user wants to merge clusters if more than 1 cluster was chosen. Else ask if the user wants to split/re-cluster the chosen cluster
                 merge = False
@@ -188,7 +183,15 @@ for files in file_list:
                 else:
                     re_cluster = str(easygui.ynbox(msg = 'Do you want to split this cluster?'))
                     re_cluster = ast.literal_eval(re_cluster)
-            
+                        
+                # Load data from the chosen electrode and solution
+                spike_waveforms = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1))
+                spike_times = np.load('./'+ hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1))
+                pca_slices = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1))
+                energy = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1))
+                amplitudes = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1))
+                predictions = np.load('./'+ hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i/predictions.npy' % ((electrode_num+1), num_clusters))
+   
             	# If the user asked to split/re-cluster, ask them for the clustering parameters and perform clustering
                 split_predictions = []
                 chosen_split = 0
@@ -201,8 +204,7 @@ for files in file_list:
                         thresh = float(clustering_params[2])
                         n_restarts = int(clustering_params[3])          
                     elif simple_GMM==1:
-                        clustering_params = easygui.multenterbox(msg = 'Enter a number of target clusters (using a GMM) \n\nNote: You have selected easy GMM \nMaximum Iterations=1000 \nConvergence Criterion=.0001 \nNumber of random restarts=10', fields = ['Number of clusters'])
-                        n_clusters = int(clustering_params[0])
+                        n_clusters = int(easygui.multenterbox(msg = 'Enter a number of target clusters (using a GMM) \n\nNote: You have selected easy GMM \nMaximum Iterations=1000 \nConvergence Criterion=.0001 \nNumber of random restarts=10', fields = ['Number of clusters'])[0])
                         n_iter = 1000
                         thresh = .0001
                         n_restarts = 10
@@ -242,10 +244,12 @@ for files in file_list:
             
                     plt.show()
             		# Ask the user for the split clusters they want to choose
-                    chosen_split = easygui.multchoicebox(msg = 'Which split cluster do you want to choose? Hit cancel to exit', choices = tuple([str(i) for i in range(n_clusters)]))
+                    chosen_split = easygui.multchoicebox(msg = 'Which split cluster do you want to choose? Hit cancel to return to electrode selection.', choices = tuple([str(i) for i in range(n_clusters)]))
                     try:
-                        len(chosen_split)
-                        #chosen_split = int(chosen_split[0])
+                        if len(chosen_split)>1: 
+                            lencheck=easygui.ynbox(msg="Multiple splits selected, is this correct? If not you will be returned to electrode selection, and results will not be saved.")
+                            if ast.literal_eval(lencheck): pass
+                            else: continue
                     except:
                         continue
             
@@ -315,12 +319,15 @@ for files in file_list:
                     ax.set_ylabel('Voltage (microvolts)')
                     ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(clusters[0]))
                     fig.savefig(figname,dpi=image_size)
-                    unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.",image=figname))
-                    if unit_verify: continue
+                    sys.exit()
+                    iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
+                    isostring='IsoI-NN: '+str(iso['IsoINN'][int(clusters[0])])+'\nIsoI-BG: '+str(iso['IsoIBG'][int(clusters[0])])
+                    unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\n"+isostring,image=figname))
+                    if ast.literal_eval(unit_verify): pass
                     else: 
                         easygui.msgbox('You indicated that this cluster was incorrect. Results for this channel have not been saved.')
                         del unit_waveforms
-                        break
+                        continue
                     hf5.create_group('/sorted_units', unit_name)
                     unit_times = spike_times[np.where(predictions == int(clusters[0]))[0]]
                     waveforms = hf5.create_array('/sorted_units/%s' % unit_name, 'waveforms', unit_waveforms)
@@ -357,7 +364,6 @@ for files in file_list:
             			# plt.plot(x - 15, unit_waveforms[:, ::10].T, linewidth = 0.01, color = 'red')
                         ax.set_xlabel('Sample (40 points per ms)')
                         ax.set_ylabel('Voltage (microvolts)')
-                        ax.set_title("Merged cluster on channel "+str(electrode_num)+ '\nNo. of waveforms={:d}'.format(unit_waveforms.shape[0]))
                         fig.savefig(figname,dpi=image_size)
              
             			# Warn the user about the frequency of ISI violations in the merged unit
@@ -397,10 +403,12 @@ for files in file_list:
                             fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(unit_waveforms, x,dir_name=dsdir)
                             ax.set_xlabel('Sample (40 points per ms)')
                             ax.set_ylabel('Voltage (microvolts)')
-                            ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(clusters[0]))
+                            ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(cluster))
                             fig.savefig(figname,dpi=image_size)
-                            unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.",image=figname))
-                            if unit_verify: continue
+                            iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
+                            isostring='IsoI-NN: '+str(iso['IsoINN'][int(cluster)])+'\nIsoI-BG: '+str(iso['IsoIBG'][int(cluster)])
+                            unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\n"+isostring,image=figname))
+                            if ast.literal_eval(unit_verify): pass
                             else: 
                                 bad_cluster=True
                                 break
@@ -433,7 +441,7 @@ for files in file_list:
                                 unit_description = table.row
                         else: 
                             easygui.msgbox("You indicated that one of the clusters was incorrect. Results for this channel have not been saved.")
-                            break
+                            continue
             except Exception as e:
                 easygui.msgbox("An error occured, you will be returned to electrode selection\n\nError message:"+str(e))
                 
@@ -528,7 +536,7 @@ for files in file_list:
             elif len(infofile)==0:
                 sys.exit("If you don't have an infofile, you should be using an older version of the postprocess script")
             else:
-                shutil.move(filedir+'/'+os.path.splitext(hdf5_name)[0]+'/'+infofile[0],'R:/Autobots Roll Out/'+UserName+'/Info_Files')
+                shutil.copy(filedir+'/'+os.path.splitext(hdf5_name)[0]+'/'+infofile[0],'R:/Autobots Roll Out/'+UserName+'/Info_Files')
         except Exception as e:
             print(e)
         with open("R:\\Autobots Roll Out\\%s\\JSON_Files\\%s.json" % (UserName, hdf5_name[:-3]), "w") as write_file:

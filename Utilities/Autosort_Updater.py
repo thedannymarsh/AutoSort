@@ -9,7 +9,6 @@ from configparser import ConfigParser
 import shutil
 import sys
 from datetime import date
-from importlib import reload
 
 python_path='C:/ProgramData/Anaconda3/Lib/site-packages'
 autosort_path=os.path.expanduser('~')+'/Documents/Autosort'
@@ -25,42 +24,44 @@ def update_autosort():
         shutil.rmtree(python_path+'/pypl2')
     shutil.copytree(autosort_repo+'/pypl2',python_path+'/pypl2')
     
-    #Make the autosort folder if none exists, and copy one time files
+    #Make the autosort folder if non exists
     if not os.path.isdir(autosort_path):
         os.mkdir(autosort_path)
         shutil.copy(autosort_repo+'/Json2Nex.py',autosort_path)
         shutil.copy(autosort_repo+'/Utilities/Autosort_Updater.py',autosort_path)
-    #update files
     shutil.copy(autosort_repo+'/Autosort_Main.py',autosort_path)
     shutil.copy(autosort_repo+'/Autosort_Post.py',autosort_path)
     
-    #make/update config file
+    #make config file
     from pypl2 import config_handler
-    reload(config_handler)
     config_handler.do_the_config(autosort_path+'/Autosort_config.ini')
     
-if os.path.isfile(autosort_path+'/version.info'): #if the version info exists
+if os.path.isfile(autosort_path+'/version.info'):
     config=ConfigParser()
     config.read(autosort_repo+'/version.txt')
-    version=config['Autosort']['version'] #get version number
+    version=config['Autosort']['version']
     config.read(autosort_path+'/version.info')
-    oldver=config['Autosort']['version'] #get version number installed on this pc
-    if oldver!=version: #if this pc's autosort is outdated 
+    oldver=config['Autosort']['version']
+    if oldver!=version:
         print('Your Autosort is outdated. Updating...')
         update_autosort()
-        config['Autosort']={'version':version,'last update':str(date.today())} #version info
+        config['Autosort']={'version':version,'last update':str(date.today())}
         with open(autosort_path+'/version.info','w') as outfile:
-            config.write(outfile) #output version info
+            config.write(outfile)
         print('Update complete! Version number is '+version)
     else: print('Your Autosort is up to date! Version number is '+version)
-else: #otherwise run first time setup
+else:
     print('Installing Autosort...')
-    update_autosort() #run setup
+    update_autosort()
     config=ConfigParser()
-    config.read(autosort_repo+'/version.txt') 
-    version=config['Autosort']['version'] #get the current version number
-    config['Autosort']={'version':version,'last update':str(date.today())} #version info
+    config.read(autosort_repo+'/version.txt')
+    version=config['Autosort']['version']
+    config['Autosort']={'version':version,'last update':str(date.today())}
     with open(autosort_path+'/version.info','w') as outfile:
-        config.write(outfile) #output version info
+        config.write(outfile)
     print('Installation complete! Version number is '+version)
     print('It is recommended that you create a batch file to activate this script weekly using Windows task scheduler, in order to avoid missing important updates!\nIf you plan on running the automated version of the Autosort, you will need to do the same for the Autosort_main.py script.')
+
+
+#add autosort_updater
+#added post to config handler

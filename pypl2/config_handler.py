@@ -13,10 +13,8 @@ Created on Mon Apr 13 10:08:58 2020
 """
 import os
 import configparser
-import sys
-import time
 
-config_ver=2
+config_ver=3
 
 def do_the_config(path=''):
     if os.name=='posix':
@@ -45,6 +43,7 @@ def default_config(path):
     config['Spike']={'Pre-time':'.2','Post-time':'.6','Sampling Rate':'40000'}
     config['Std Dev']={'Spike Detection':'2.0','Artifact Removal':'10.0'}
     config['PCA']={'Variance Explained':'.95','Use Percent Variance':'1','Principal Component n':'5'}
+    config['Post Process']={'reanalyze':'0','simple gmm':'1','image size':'70','temporary dir':r'C:\Users\DiLorenzoTech\tmp_python'}
     config['Version']={'config version':str(config_ver)}
     with open(path,'w') as configfile:
         config.write(configfile)
