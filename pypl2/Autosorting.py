@@ -554,7 +554,10 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
             
             #Get isolation statistics for each solution
-            isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
+            if np.any(np.array(ISIList)<1):
+                isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
+            else: 
+                isodf=pd.DataFrame(columns=['IsoIBG','IsoINN','NNClust','IsoD','L-Ratio'],index=range(i+3))
             isodf.insert(1,'ISIs (%)',ISIList) #need to gather ISI's into list
             isodf.insert(0,'wf count',[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)])
             isodf.insert(0,'Solution',i+3) 
