@@ -101,7 +101,10 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 
 def isoinfo(data,predictions,isodir='temporary_iso_info',Lrat_cutoff=.1):   
     #runs isolation information processing on feature data, and returns cluster isolation data in the form of a pandas dataframe
-    os.mkdir(isodir) #make the temp directory
+    if os.path.isdir(isodir):
+        shutil.rmtree(isodir)
+    try: os.mkdir(isodir) #make the temp directory
+    except: pass
     olddir=os.getcwd()
     os.chdir(isodir)
     #feature data packages the predictions and features in the format required by the isorat and isoi executables
