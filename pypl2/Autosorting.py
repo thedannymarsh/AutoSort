@@ -335,7 +335,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     except:
         hf5.close()
         print("There was an error getting electrode data.")
-        return
+        # return
     finally: hf5.close()
     
     # High bandpass filter the raw electrode recordings
@@ -534,11 +534,11 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             ISIList=[]
             for cluster in range(i+3):
                 cluster_points = np.where(predictions[:] == cluster)[0]
-        
                 fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"datashader_temp_el" + str(electrode_num+1))
                 ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
                 ax.set_ylabel('Voltage (microvolts)')
                 ax.set_title('Cluster%i' % cluster)
+                plt.annotate('wf: '+str(len(np.where(predictions[:] == cluster)[0])),(.14,.85),xycoords='figure fraction')
                 fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs/Cluster%i_waveforms' % ((electrode_num+1), i+3, cluster))
                 plt.close("all")
                 
@@ -556,6 +556,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             #Get isolation statistics for each solution
             isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
             isodf.insert(1,'ISIs (%)',ISIList) #need to gather ISI's into list
+            isodf.insert(0,'wf count',[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)])
             isodf.insert(0,'Solution',i+3) 
             isodf.insert(0,'Channel',electrode_num+1) 
             isodf.insert(0,'File',hdf5_name[:-3]) 
@@ -643,7 +644,7 @@ def compile_isoi(full_filename,maxclust):
         redden= workbook.add_format({'bg_color':'red'})
         yellen = workbook.add_format({'bg_color':'yellow'})
         #add conditional formatting based on ISI's
-        worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>1','format':redden}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
-        worksheet.conditional_format('A2:K{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$F2>.5','format':yellen}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
+        worksheet.conditional_format('A2:L{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$G2>1','format':redden}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
+        worksheet.conditional_format('A2:L{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$G2>.5','format':yellen}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
         outwrite.save() #need to get the correct ISI column here
         
