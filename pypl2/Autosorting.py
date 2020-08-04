@@ -30,6 +30,9 @@ from PIL import ImageFont, ImageDraw, Image
 matplotlib.use('Agg')
 import configparser
 from datetime import date
+import traceback
+import warnings
+import time
 
 
 
@@ -272,113 +275,121 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     # This script is called by Pl2_PreProcessing and should be placed with other modules used by python.
     
     #################    Define the function that will do the actual processing   #################
+    retried=0
+    while True:
+        try:
+            filename=os.path.splitext(pl2_fullpath)[0]+'\n'
+            #print(filename)
+         
+            filedir=[os.path.split(pl2_fullpath)[0]+'\n']
+            
+            # Change directory to the folder containing the hdf5 files
+            os.chdir(filedir[0][:-1])
         
-
-    filename=os.path.splitext(pl2_fullpath)[0]+'\n'
-    #print(filename)
- 
-    filedir=[os.path.split(pl2_fullpath)[0]+'\n']
-    
-    # Change directory to the folder containing the hdf5 files
-    os.chdir(filedir[0][:-1])
-
-    # find the hdf5 (.h5) file
-    hdf5_name = filename[:-1] + '.h5'
-    #print("Opening file " + hdf5_name)
-    
-
-    
-    #print("Analyzing electrode number " + str(electrode_num+1))
-    # Check if the directories for this electrode number exist - if they do, delete them (existence of the directories indicates a job restart on the cluster, so restart afresh)
-    if os.path.isdir(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)):
-        shutil.rmtree(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1))
-    if os.path.isdir(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1)):
-        shutil.rmtree(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1))
-    if os.path.isdir(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1)):
-        shutil.rmtree(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1))
-    if os.path.isdir(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1)):
-        shutil.rmtree(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1))
-    
-    # Then make all these directories
-    os.mkdir(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1))
-    os.mkdir(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1))
-    os.mkdir(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1))
-    os.mkdir(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1))
-    
-    # Assign the parameters to variables
-    max_clusters = int(params['max clusters'])
-    num_iter = int(params['max iterations'])
-    thresh = float(params['convergence criterion'])
-    num_restarts = int(params['random restarts'])
-    voltage_cutoff = float(params['disconnect voltage'])
-    max_breach_rate = float(params['max breach rate'])
-    max_secs_above_cutoff = int(params['max breach count'])
-    max_mean_breach_rate_persec = float(params['max breach avg.'])
-    wf_amplitude_sd_cutoff = float(params['intra-cluster cutoff'])
-    bandpass_lower_cutoff = float(params['low cutoff'])
-    bandpass_upper_cutoff = float(params['high cutoff'])
-    spike_snapshot_before = float(params['pre-time'])
-    spike_snapshot_after = float(params['post-time'])
-    sampling_rate = float(params['sampling rate'])
-    STD=float(params['spike detection'])
-    cutoff_std=float(params['artifact removal'])
-    pvar=float(params['variance explained'])
-    usepvar=int(params['use percent variance'])
-    userpc=int(params['principal component n'])
-    min_L=float(params['l-ratio cutoff'])
-    
-    
-    # Open up hdf5 file, and load this electrode number
-    hf5 = tables.open_file(hdf5_name, 'r')
-    try:
-        spkc=getattr(hf5.root.SPKC,'SPKC'+f'{electrode_num:02d}')[:]
-    except:
-        hf5.close()
-        print("There was an error getting electrode data.")
-        # return
-    finally: hf5.close()
-    
-    # High bandpass filter the raw electrode recordings
-    filt_el = clust.get_filtered_electrode(spkc, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
-    
-    # Delete raw electrode recording from memory
-    del spkc
-    
-    # Calculate the 3 voltage parameters
-    breach_rate = float(len(np.where(filt_el>voltage_cutoff)[0])*int(sampling_rate))/len(filt_el)
-    test_el = np.reshape(filt_el[:int(sampling_rate)*int(len(filt_el)/sampling_rate)], (-1, int(sampling_rate)))
-    breaches_per_sec = [len(np.where(test_el[i] > voltage_cutoff)[0]) for i in range(len(test_el))]
-    breaches_per_sec = np.array(breaches_per_sec)
-    secs_above_cutoff = len(np.where(breaches_per_sec > 0)[0])
-    if secs_above_cutoff == 0:
-        mean_breach_rate_persec = 0
-    else:
-        mean_breach_rate_persec = np.mean(breaches_per_sec[np.where(breaches_per_sec > 0)[0]])
-    
-    # And if they all exceed the cutoffs, assume that the headstage fell off mid-experiment
-    recording_cutoff = int(len(filt_el)/sampling_rate)
-    if breach_rate >= max_breach_rate and secs_above_cutoff >= max_secs_above_cutoff and mean_breach_rate_persec >= max_mean_breach_rate_persec:
-        # Find the first 1 second epoch where the number of cutoff breaches is higher than the maximum allowed mean breach rate 
-        recording_cutoff = np.where(breaches_per_sec > max_mean_breach_rate_persec)[0][0]
-    
-    # Dump a plot showing where the recording was cut off at
-    fig = plt.figure()
-    plt.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
-    plt.plot((recording_cutoff, recording_cutoff), (np.min(np.mean(test_el, axis = 1)), np.max(np.mean(test_el, axis = 1))), 'k-', linewidth = 4.0)
-    plt.xlabel('Recording time (secs)')
-    plt.ylabel('Average voltage recorded per sec (microvolts)')
-    plt.title('Recording cutoff time (indicated by the black horizontal line)')
-    fig.savefig(hdf5_name[:-3] +'/Plots/%i/cutoff_time.png' % (electrode_num+1), bbox_inches='tight')
-    plt.close("all")
-    
-    # Then cut the recording accordingly
-    filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
-    
-    # Slice waveforms out of the filtered electrode recordings
-    slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
-    
-    # Delete filtered electrode from memory
-    del filt_el, test_el
+            # find the hdf5 (.h5) file
+            hdf5_name = filename[:-1] + '.h5'
+            #print("Opening file " + hdf5_name)
+            
+        
+            
+            #print("Analyzing electrode number " + str(electrode_num+1))
+            # Check if the directories for this electrode number exist - if they do, delete them (existence of the directories indicates a job restart on the cluster, so restart afresh)
+            if os.path.isdir(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)):
+                shutil.rmtree(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1))
+            if os.path.isdir(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1)):
+                shutil.rmtree(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1))
+            if os.path.isdir(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1)):
+                shutil.rmtree(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1))
+            if os.path.isdir(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1)):
+                shutil.rmtree(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1))
+            
+            # Then make all these directories
+            os.mkdir(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1))
+            os.mkdir(hdf5_name[:-3] +'/spike_waveforms/electrode '+str(electrode_num+1))
+            os.mkdir(hdf5_name[:-3] +'/spike_times/electrode '+str(electrode_num+1))
+            os.mkdir(hdf5_name[:-3] +'/clustering_results/electrode '+str(electrode_num+1))
+            
+            # Assign the parameters to variables
+            max_clusters = int(params['max clusters'])
+            num_iter = int(params['max iterations'])
+            thresh = float(params['convergence criterion'])
+            num_restarts = int(params['random restarts'])
+            voltage_cutoff = float(params['disconnect voltage'])
+            max_breach_rate = float(params['max breach rate'])
+            max_secs_above_cutoff = int(params['max breach count'])
+            max_mean_breach_rate_persec = float(params['max breach avg.'])
+            wf_amplitude_sd_cutoff = float(params['intra-cluster cutoff'])
+            bandpass_lower_cutoff = float(params['low cutoff'])
+            bandpass_upper_cutoff = float(params['high cutoff'])
+            spike_snapshot_before = float(params['pre-time'])
+            spike_snapshot_after = float(params['post-time'])
+            sampling_rate = float(params['sampling rate'])
+            STD=float(params['spike detection'])
+            cutoff_std=float(params['artifact removal'])
+            pvar=float(params['variance explained'])
+            usepvar=int(params['use percent variance'])
+            userpc=int(params['principal component n'])
+            min_L=float(params['l-ratio cutoff'])
+            
+            
+            # Open up hdf5 file, and load this electrode number
+            hf5 = tables.open_file(hdf5_name, 'r')
+            spkc=getattr(hf5.root.SPKC,'SPKC'+f'{electrode_num:02d}')[:]
+            hf5.close()
+            
+            # High bandpass filter the raw electrode recordings
+            filt_el = clust.get_filtered_electrode(spkc, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
+            
+            # Delete raw electrode recording from memory
+            del spkc
+            
+            # Calculate the 3 voltage parameters
+            breach_rate = float(len(np.where(filt_el>voltage_cutoff)[0])*int(sampling_rate))/len(filt_el)
+            test_el = np.reshape(filt_el[:int(sampling_rate)*int(len(filt_el)/sampling_rate)], (-1, int(sampling_rate)))
+            breaches_per_sec = [len(np.where(test_el[i] > voltage_cutoff)[0]) for i in range(len(test_el))]
+            breaches_per_sec = np.array(breaches_per_sec)
+            secs_above_cutoff = len(np.where(breaches_per_sec > 0)[0])
+            if secs_above_cutoff == 0:
+                mean_breach_rate_persec = 0
+            else:
+                mean_breach_rate_persec = np.mean(breaches_per_sec[np.where(breaches_per_sec > 0)[0]])
+            
+            # And if they all exceed the cutoffs, assume that the headstage fell off mid-experiment
+            recording_cutoff = int(len(filt_el)/sampling_rate)
+            if breach_rate >= max_breach_rate and secs_above_cutoff >= max_secs_above_cutoff and mean_breach_rate_persec >= max_mean_breach_rate_persec:
+                # Find the first 1 second epoch where the number of cutoff breaches is higher than the maximum allowed mean breach rate 
+                recording_cutoff = np.where(breaches_per_sec > max_mean_breach_rate_persec)[0][0]
+            
+            # Dump a plot showing where the recording was cut off at
+            fig = plt.figure()
+            plt.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+            plt.plot((recording_cutoff, recording_cutoff), (np.min(np.mean(test_el, axis = 1)), np.max(np.mean(test_el, axis = 1))), 'k-', linewidth = 4.0)
+            plt.xlabel('Recording time (secs)')
+            plt.ylabel('Average voltage recorded per sec (microvolts)')
+            plt.title('Recording cutoff time (indicated by the black horizontal line)')
+            fig.savefig(hdf5_name[:-3] +'/Plots/%i/cutoff_time.png' % (electrode_num+1), bbox_inches='tight')
+            plt.close("all")
+            
+            # Then cut the recording accordingly
+            filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
+            
+            # Slice waveforms out of the filtered electrode recordings
+            slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
+            
+            # Delete filtered electrode from memory
+            del filt_el, test_el
+            
+            break
+        except MemoryError:
+            if retried==1:
+                traceback.print_exc()
+                return
+            warnings.warn("Warning, could not allocate memory for electrode {}".format(electrode_num+1))
+            retried=1
+            time.sleep(300)
+        except: 
+            traceback.print_exc()
+            return
     
     if len(slices)==0 or len(spike_times)==0:
         with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
@@ -554,7 +565,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
             
             #Get isolation statistics for each solution
-            if np.any(np.array(ISIList)<1):
+            if np.any(np.array([float(x) for x in ISIList])<1):
                 isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
             else: 
                 isodf=pd.DataFrame(columns=['IsoIBG','IsoINN','NNClust','IsoD','L-Ratio'],index=range(i+3))
