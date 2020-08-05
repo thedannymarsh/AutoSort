@@ -62,6 +62,3 @@ else:
     print('Installation complete! Version number is '+version)
     print('It is recommended that you create a batch file to activate this script weekly using Windows task scheduler, in order to avoid missing important updates!\nIf you plan on running the automated version of the Autosort, you will need to do the same for the Autosort_main.py script.')
 
-
-#add autosort_updater
-#added post to config handler
