@@ -29,44 +29,44 @@ run type - This denotes whether this run will be done manually, or automatically
 manual run = This is an integer representing the number of files which will be processed if run type is set to 'Manual' (Default=2)
 
 [Paths]
-pl2 to-run path = R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted
-running path = R:\Dannymarsh Sorting Emporium\running_files
-results path = R:\Dannymarsh Sorting Emporium\Results
-completed pl2 path = R:\Dannymarsh Sorting Emporium\completed_pl2
-use paths = 1
-else path = 
+pl2 to-run path - Path containing pl2 files to be run
+running path - Path where files will be moved for processing
+results path - Output path
+completed pl2 path - Path where pl2 files will be moved upon completion
+use paths - Whether to use the paths above, or the "else path." Choose 1 to use the multiple paths option, choose 0 to run everything within else path (not recommended if multiple computers are running from the same path
+else path - Path to use if "use paths" is 0
 
 [Clustering]
-max clusters = 7
-max iterations = 1000
-convergence criterion = .0001
-random restarts = 10
-l-ratio cutoff = .1
+max clusters - An integer representing the maximum cluster count to use for Gaussian Mixture Modeling (GMM). The program will always start at 3. (Default = 7)
+max iterations - Integer. Maximum GMM iterations (Default = 1000)
+convergence criterion - Float. GMM convergence criterion (Default = .0001)
+random restarts - Integer. Number of random restarts for GMM (Default = 10)
+l-ratio cutoff - Integer. If the L-ratio for every cluster is above this cutoff, isolation information will not be calculated
 
 [Signal]
-disconnect voltage = 1500
-max breach rate = .2
-max breach count = 10
-max breach avg. = 20
-intra-cluster cutoff = 3
+disconnect voltage - Float. Voltage cutoff for disconnected headstage noise (in uV) (Default = 1500)
+max breach rate - Integer. Maximum rate of cutoff breaches per sec (Default = .2)
+max breach count - Float. Maximum number of allowed seconds with at least 1 cutoff breach (Default = 10)
+max breach avg. - Float. Maximum allowed average number of cutoff breaches per sec (Default = 20)
+intra-cluster cutoff - Float. Intra-cluster waveform amplitude SD cutoff (Default = 3)
 
 [Filtering]
-low cutoff = 300
-high cutoff = 6000
+low cutoff - Float. Lower frequency cutoff (Hz) (Default = 300)
+high cutoff - Float. Upper frequency cutoff (Hz) (Default = 6000)
 
 [Spike]
-pre-time = .2
-post-time = .6
-sampling rate = 40000
+pre-time - Float. Time before spike minimum (ms) (Default = 0.2)
+post-time Float. Time after spike minimum (ms) (Default = 0.6)
+sampling rate - Int Electrode data sample rate (Hz) (Default = 40000)
 
 [Std Dev]
-spike detection = 2.0
-artifact removal = 10.0
+spike detection - Float. Standard deviation cutoff below mean electrode signal to detect a putative spike (Default = 2.0)
+artifact removal = Float. Standard deviation cutoff above mean electrode signal to detect artifact (Default = 10.0)
 
 [PCA]
-variance explained = .95
-use percent variance = 1
-principal component n = 5
+variance explained - Float. Percentage variance to be explained by principal components (pc) used in gaussian mixture modeling
+use percent variance - Logical. Choose 1 to select PC spaces based on variance explained. Choose 0 to use a user specified number of pc spaces.
+principal component n - If 
 
 [Post Process]
 reanalyze = 0

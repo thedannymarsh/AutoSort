@@ -15,7 +15,7 @@ import pandas as pd
 
 ################################################### End user parameters
 
-sys.exit('DO NOT USE. This script is under construction.')  
+sys.exit('DO NOT USE. This script is under construction')  
 
 #If the image directory does not exit, create it
 params=config_handler.do_the_config()

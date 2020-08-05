@@ -15,6 +15,7 @@ import math              # Used to round values
 import tables            # Used to read the hdf5 files
 import datetime
 import warnings
+import traceback
 
 if __name__ == '__main__':
     params=config_handler.do_the_config() #pull parameters from config file, or create a new file if it is an old version or there is no file
@@ -124,7 +125,8 @@ if __name__ == '__main__':
                 print("All channels were sorted successfully!")
             elif len(bad_runs)==1: #if there was a bad run, initialize resort
                 print('Channel',bad_runs[0],'was not sorted successfully, resorting...')
-                AS.Processing(bad_runs[0]-1,filename,params)
+                try: AS.Processing(bad_runs[0]-1,filename,params)
+                except: traceback.print_exc()
             else: #if there were multiple bad runs, parallel resort up to the core count
                 if len(bad_runs)>=elNum:
                     raise Exception("Sorting failed on every channel. Do not close python, talk to Daniel")
