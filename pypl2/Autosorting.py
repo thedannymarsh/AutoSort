@@ -383,13 +383,13 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         except MemoryError:
             if retried==1:
                 traceback.print_exc()
-                return
+                # return
             warnings.warn("Warning, could not allocate memory for electrode {}".format(electrode_num+1))
             retried=1
             time.sleep(300)
         except: 
             traceback.print_exc()
-            return
+            # return
     
     if len(slices)==0 or len(spike_times)==0:
         with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
@@ -509,7 +509,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                     y,binEdges=np.histogram(mahalanobis_dist)
                     bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
                     plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
-                    
                 plt.xlabel('Mahalanobis distance')
                 plt.ylabel('Frequency')
                 plt.legend(loc = 'upper right', fontsize = 8)
@@ -518,14 +517,17 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.close("all")
                 
                 #correct mahalanobis calculations
+                
             for ref_cluster in range(i+3):
                 fig = plt.figure()
                 ref_mean = model.means_[ref_cluster, :]
                 ref_covar_I = linalg.inv(model.covariances_[ref_cluster, :, :])
+                all_mah=[]
                 for other_cluster in range(i+3):
                     mahalanobis_dist = []
                     other_cluster_points = np.where(predictions[:] == other_cluster)[0]
                     for point in other_cluster_points:
+                          all_mah.append(mahalanobis(data[point, :], ref_mean, ref_covar_I)) 
                           mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
                     # Plot histogram of Mahalanobis distances
                     y,binEdges=np.histogram(mahalanobis_dist)
@@ -537,6 +539,37 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
                 fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
                 plt.close("all")
+                
+                L=0
+                for point in all_mah:
+                    L+=chi2.cdf(point**2,np.shape(data)[1])
+                Lratiosquare=L/len(np.where(predictions==ref_cluster)[0])
+            
+            from scipy.stats import chi2
+            import subprocess
+            L=0
+            refmen=np.mean(data[np.where(predictions==ref_cluster)],axis=0)
+            reftest=linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
+            for point in np.where(predictions[:] != ref_cluster)[0]:
+                L+=chi2.cdf((mahalanobis(data[point, :], refmen, reftest))**2,np.shape(data)[1])
+            Lratio=L/len(np.where(predictions==ref_cluster)[0])    
+            
+            isodir=r'R:\Daniel\Current Projects\Autosort Isolation Metric\Profiler\17_0312 GCE83PureLaser\Plots\iso'
+                        #runs isolation information processing on feature data, and returns cluster isolation data in the form of a pandas dataframe
+            if os.path.isdir(isodir):
+                shutil.rmtree(isodir)
+            try: os.mkdir(isodir) #make the temp directory
+            except: pass
+            olddir=os.getcwd()
+            os.chdir(isodir)
+            #feature data packages the predictions and features in the format required by the isorat and isoi executables
+            featuredata=pd.DataFrame(np.concatenate((np.reshape(predictions+1,(len(predictions),1)), data),axis=1),columns=['Cluster','Energy','Amplitude']+['PC'+str(n) for n in range(1,np.shape(data)[1]-1)])
+            featuredata=featuredata.astype({'Cluster':int})
+            featuredata.to_csv(isodir+'/featuredata.txt',header=True, index=False, sep='\t') 
+            subprocess.run(['R:/Daniel/Repositories/Autosort/pypl2/bin/isorat.exe',"featuredata.txt",'isorat_output.txt'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) #run isorat (produces isod and l ratio)
+            isorat_df=pd.read_csv('isorat_output.txt',sep=' ',names=['IsoD','L-Ratio'])
+
+            
             
             # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
             # Additionally plot the ISI distribution of each cluster 
@@ -569,21 +602,23 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
             else: 
                 isodf=pd.DataFrame(columns=['IsoIBG','IsoINN','NNClust','IsoD','L-Ratio'],index=range(i+3))
-                isodf.insert(0,'Cluster',isodf.index)
-            isodf.insert(1,'ISIs (%)',ISIList) #need to gather ISI's into list
-            isodf.insert(1,'wf count',[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)])
-            isodf.insert(0,'Solution',i+3) 
-            isodf.insert(0,'Channel',electrode_num+1) 
-            isodf.insert(0,'File',hdf5_name[:-3]) 
-            isodf.insert(0,'IsoRating','TBD') 
-            isodf=isodf.round({'IsoIBG':3,'IsoINN':3,'L-Ratio':3,'IsoD':3,})
+            isodf=pd.DataFrame({
+                'IsoRating':'TBD',
+                'File':os.path.split(hdf5_name[:-3])[-1],
+                'Channel':electrode_num+1,
+                'Solution':i+3,
+                'Cluster':range(i+3),
+                'wf count':[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)],
+                'ISIs (%)': ISIList,
+                'L-Ratio': Lrats,
+                })
+                
             isodf.to_csv(hdf5_name[:-3] +'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1, i+3),index=False)
 
             #output this all in a plot in the plots folder and replace the ISI plot in superplots
             for cluster in range(i+3):
-                text='1 ms ISIs (%): \nIsoI-BG: \nIsoI-NN: \nNNClust: \nIsoD: \nL-Ratio: ' #package text to be plotted
-                text2='{}\n{}\n{}\n{}\n{}\n{}'.format(isodf['ISIs (%)'][cluster], isodf['IsoIBG'][cluster],isodf['IsoINN'][cluster],
-                                                      isodf['NNClust'][cluster],isodf['IsoD'][cluster],isodf['L-Ratio'][cluster])
+                text='1 ms ISIs (%): \nL-Ratio: ' #package text to be plotted
+                text2='{}\n{}'.format(isodf['ISIs (%)'][cluster],isodf['L-Ratio'][cluster])
                 blank=np.ones((480,640,3),np.uint8)*255 #initialize empty whihte image
                 cv2_im_rgb=cv2.cvtColor(blank,cv2.COLOR_BGR2RGB)   #convert to color space pillow can use
                 pil_im=Image.fromarray(cv2_im_rgb)  #get pillow image
@@ -633,7 +668,7 @@ def superplots(full_filename,maxclust):
             print("Could not create superplots for channel " +channel+ ". Encountered the following error: "+e)
             
 
-def compile_isoi(full_filename,maxclust):
+def compile_isoi(full_filename,maxclust=7,Lrat_cutoff=.1):
     #compiles all isolation information into one excel file
     path=os.path.splitext(full_filename)[0]+'/clustering_results'
     file_isoi=pd.DataFrame()
@@ -657,9 +692,11 @@ def compile_isoi(full_filename,maxclust):
         workbook  = outwrite.book
         worksheet = outwrite.sheets['iso_data']
         redden= workbook.add_format({'bg_color':'red'})
+        orangen= workbook.add_format({'bg_color':'orange'})
         yellen = workbook.add_format({'bg_color':'yellow'})
         #add conditional formatting based on ISI's
-        worksheet.conditional_format('A2:L{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$G2>1','format':redden}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
-        worksheet.conditional_format('A2:L{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=$G2>.5','format':yellen}) #new formula for when we have established number: =OR($F2>.5,$K2>{}).format(Lrat_cutoff)) Note, will need to change lrat to isoiNN and BG
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR($G2>.5,H2<{})'.format(str(Lrat_cutoff)),'format':yellen}) 
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR(AND($G2>.5,H2<{}),$G2>1)'.format(str(Lrat_cutoff)),'format':orangen}) 
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'AND($G2>1,H2<{})'.format(str(Lrat_cutoff)),'format':redden}) 
         outwrite.save() #need to get the correct ISI column here
         
