@@ -6,7 +6,7 @@ import ast
 import pylab as plt
 from sklearn.mixture import GaussianMixture
 import pypl2.Pl2_waveforms_datashader
-import pypl2.Clustering as clust
+from pypl2.clustering import get_Lratios
 from pypl2 import config_handler
 import json
 import shutil

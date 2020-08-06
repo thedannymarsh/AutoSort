@@ -265,16 +265,12 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
 
 
 def Processing(electrode_num,pl2_fullpath, params): # Define function
+    '''
+    This script is used to read hdf5 files and identify possible cells. The cells are into different numbers
+    of clusters of which the user will identify which set of clusters to use and which clusters are cells
+    This script is called by Pl2_PreProcessing and should be placed with other modules used by python.
     
-    
-    #########################################################################################################
-    ###########################################   Pl2_Processing   ##########################################
-    
-    # This script is used to read hdf5 files and identify possible cells. The cells are into different numbers
-    # of clusters of which the user will identify which set of clusters to use and which clusters are cells
-    # This script is called by Pl2_PreProcessing and should be placed with other modules used by python.
-    
-    #################    Define the function that will do the actual processing   #################
+    '''
     retried=0
     while True:
         try:
@@ -520,8 +516,10 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 
             for ref_cluster in range(i+3):
                 fig = plt.figure()
-                ref_mean = model.means_[ref_cluster, :]
-                ref_covar_I = linalg.inv(model.covariances_[ref_cluster, :, :])
+                # ref_mean = model.means_[ref_cluster, :]
+                ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
+                # ref_covar_I = linalg.inv(model.covariances_[ref_cluster, :, :])
+                ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
                 all_mah=[]
                 for other_cluster in range(i+3):
                     mahalanobis_dist = []
@@ -539,37 +537,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
                 fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
                 plt.close("all")
-                
-                L=0
-                for point in all_mah:
-                    L+=chi2.cdf(point**2,np.shape(data)[1])
-                Lratiosquare=L/len(np.where(predictions==ref_cluster)[0])
-            
-            from scipy.stats import chi2
-            import subprocess
-            L=0
-            refmen=np.mean(data[np.where(predictions==ref_cluster)],axis=0)
-            reftest=linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
-            for point in np.where(predictions[:] != ref_cluster)[0]:
-                L+=chi2.cdf((mahalanobis(data[point, :], refmen, reftest))**2,np.shape(data)[1])
-            Lratio=L/len(np.where(predictions==ref_cluster)[0])    
-            
-            isodir=r'R:\Daniel\Current Projects\Autosort Isolation Metric\Profiler\17_0312 GCE83PureLaser\Plots\iso'
-                        #runs isolation information processing on feature data, and returns cluster isolation data in the form of a pandas dataframe
-            if os.path.isdir(isodir):
-                shutil.rmtree(isodir)
-            try: os.mkdir(isodir) #make the temp directory
-            except: pass
-            olddir=os.getcwd()
-            os.chdir(isodir)
-            #feature data packages the predictions and features in the format required by the isorat and isoi executables
-            featuredata=pd.DataFrame(np.concatenate((np.reshape(predictions+1,(len(predictions),1)), data),axis=1),columns=['Cluster','Energy','Amplitude']+['PC'+str(n) for n in range(1,np.shape(data)[1]-1)])
-            featuredata=featuredata.astype({'Cluster':int})
-            featuredata.to_csv(isodir+'/featuredata.txt',header=True, index=False, sep='\t') 
-            subprocess.run(['R:/Daniel/Repositories/Autosort/pypl2/bin/isorat.exe',"featuredata.txt",'isorat_output.txt'], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) #run isorat (produces isod and l ratio)
-            isorat_df=pd.read_csv('isorat_output.txt',sep=' ',names=['IsoD','L-Ratio'])
-
-            
             
             # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
             # Additionally plot the ISI distribution of each cluster 
@@ -582,7 +549,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
                 ax.set_ylabel('Voltage (microvolts)')
                 ax.set_title('Cluster%i' % cluster)
-                plt.annotate('wf: '+str(len(np.where(predictions[:] == cluster)[0])),(.14,.85),xycoords='figure fraction')
+                # plt.annotate('wf: '+str(len(np.where(predictions[:] == cluster)[0])),(.14,.85),xycoords='figure fraction')
                 fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs/Cluster%i_waveforms' % ((electrode_num+1), i+3, cluster))
                 plt.close("all")
                 
@@ -597,11 +564,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.close("all") 
                 ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
             
-            #Get isolation statistics for each solution
-            if np.any(np.array([float(x) for x in ISIList])<1):
-                isodf=clust.isoinfo(data,predictions,Lrat_cutoff=min_L,isodir=hdf5_name[:-3]+"_temp_isoi_el_" + str(electrode_num+1))
-            else: 
-                isodf=pd.DataFrame(columns=['IsoIBG','IsoINN','NNClust','IsoD','L-Ratio'],index=range(i+3))
+            #Get isolation statistics for each solution            
+            Lrats=clust.get_Lratios(data,predictions)
             isodf=pd.DataFrame({
                 'IsoRating':'TBD',
                 'File':os.path.split(hdf5_name[:-3])[-1],
@@ -610,22 +574,20 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 'Cluster':range(i+3),
                 'wf count':[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)],
                 'ISIs (%)': ISIList,
-                'L-Ratio': Lrats,
+                'L-Ratio': [round(x,3) for x in Lrats],
                 })
-                
-            isodf.to_csv(hdf5_name[:-3] +'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1, i+3),index=False)
 
             #output this all in a plot in the plots folder and replace the ISI plot in superplots
             for cluster in range(i+3):
-                text='1 ms ISIs (%): \nL-Ratio: ' #package text to be plotted
-                text2='{}\n{}'.format(isodf['ISIs (%)'][cluster],isodf['L-Ratio'][cluster])
+                text='wf count: \n1 ms ISIs: \nL-Ratio: ' #package text to be plotted
+                text2='{}\n{}%\n{}'.format(isodf['wf count'][cluster],isodf['ISIs (%)'][cluster],isodf['L-Ratio'][cluster])
                 blank=np.ones((480,640,3),np.uint8)*255 #initialize empty whihte image
                 cv2_im_rgb=cv2.cvtColor(blank,cv2.COLOR_BGR2RGB)   #convert to color space pillow can use
                 pil_im=Image.fromarray(cv2_im_rgb)  #get pillow image
                 draw=ImageDraw.Draw(pil_im)   #create draw object for text
-                font=ImageFont.truetype(os.path.split(__file__)[0]+"/bin/arial.ttf", 60)  #use arial font
-                draw.multiline_text((35, 20), text, font=font,fill=(0,0,0,255),spacing=20,align='right')   #draw the text
-                draw.multiline_text((420, 20), text2, font=font,fill=(0,0,0,255),spacing=20)   #draw the text
+                font=ImageFont.truetype("R:/Daniel/Repositories/Autosort/pypl2/bin/arial.ttf", 60)  #use arial font
+                draw.multiline_text((90, 100), text, font=font,fill=(0,0,0,255),spacing=50,align='left')   #draw the text
+                draw.multiline_text((380, 100), text2, font=font,fill=(0,0,0,255),spacing=50)   #draw the text
                 isoimg=cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)  #convert back to openCV image
                 cv2.imwrite(hdf5_name[:-3] +'/Plots/{}/{}_clusters_waveforms_ISIs/Cluster{}_Isolation.png'.format(electrode_num+1, i+3, cluster),isoimg) #save the image
             
