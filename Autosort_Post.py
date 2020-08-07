@@ -260,7 +260,6 @@ for files in file_list:
                     plt.show()
             		# Ask the user for the split clusters they want to choose
                     chosen_split = easygui.multchoicebox(msg = 'Which split cluster(s) do you want to choose? Hit cancel to return to electrode selection.', choices = tuple([str(i) for i in range(n_clusters)]))
-                    sys.exit()
                     try:
                         len(chosen_split)
                         those_cluster = np.where(predictions != int(clusters[0]))[0]
@@ -271,6 +270,7 @@ for files in file_list:
                         alldata=np.concatenate((thosedata,data),axis=0)
                         all_predictions=np.concatenate((np.zeros(np.shape(thosedata)[0])-1,split_predictions))
                         Lrats=clust.get_Lratios(alldata,all_predictions)
+                        ISIList=[]
                         for choice in chosen_split:
                             cluster=int(choice)
                             split_points = np.where(split_predictions == cluster)[0]				
@@ -280,6 +280,7 @@ for files in file_list:
                             times_dejittered = times_dejittered[split_points]		# Waveforms and times from the chosen split of the chosen cluster
                             ISIs = np.ediff1d(np.sort(times_dejittered))/40.0       # Get number of points between waveforms and divide by frequency per ms (40)
                             violations1 = 100.0*float(np.sum(ISIs < 1.0)/split_points.shape[0])
+                            ISIList.append(round(violations1,1))
                             violations2 = 100.0*float(np.sum(ISIs < 2.0)/split_points.shape[0])
                             fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[split_points, :], x,dir_name=dsdir)
             				# plt.plot(x-15, slices_dejittered[split_points, :].T, linewidth = 0.01, color = 'red')
@@ -341,7 +342,7 @@ for files in file_list:
                         times = hf5.create_array('/sorted_units/%s' % unit_name, 'times', unit_times)
                         channel = hf5.create_array('/sorted_units/%s' % unit_name, 'channel', unit_chan)
                         unit_description['electrode_number'] = electrode_num
-                        single_unit = str(easygui.ynbox(msg = 'Are you mostly-SURE that %s is a beautiful single unit?' % chosen_split[cluster]))
+                        # single_unit = str(easygui.ynbox(msg = 'Are you mostly-SURE that %s is a beautiful single unit?' % chosen_split[cluster]))
                         unit_description['single_unit'] = int(1)
                 		# If the user says that this is a single unit, ask them whether its regular or fast spiking
                         unit_description['regular_spiking'] = 1
@@ -352,7 +353,7 @@ for files in file_list:
                         unit_description.append()
                         table.flush()
                         hf5.flush()
-                        choice=int(chosen_split(cluster))
+                        choice=int(chosen_split[cluster])
                         split_points = np.where(split_predictions == choice)[0]
                         violations1 = 100.0*float(np.sum(ISIs < 1.0)/split_points.shape[0])
                         this_iso={
@@ -361,8 +362,8 @@ for files in file_list:
                             'Channel':electrode_num+1,
                             'Solution':num_clusters,
                             'Cluster':'s',
-                            'wf count':'1',
-                            'ISIs (%)':round(violations1,1),
+                            'wf count':len(np.where(split_predictions == int(chosen_split[int(cluster)]))[0]),
+                            'ISIs (%)': ISIList[cluster],
                             'L-Ratio':round(Lrats[int(chosen_split[cluster])],3),
                             }
                         file_iso=file_iso.append(this_iso,ignore_index=True)
