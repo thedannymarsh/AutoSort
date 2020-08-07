@@ -6,16 +6,17 @@ import ast
 import pylab as plt
 from sklearn.mixture import GaussianMixture
 import pypl2.Pl2_waveforms_datashader
-from pypl2.clustering import get_Lratios
+import pypl2.Clustering as clust
 from pypl2 import config_handler
 import json
 import shutil
 import sys
 import pandas as pd
+from datetime import date
 
 ################################################### End user parameters
 
-sys.exit('DO NOT USE. This script is under construction')  
+# sys.exit('DO NOT USE. This script is under construction')  
 
 #If the image directory does not exit, create it
 params=config_handler.do_the_config()
@@ -91,6 +92,7 @@ hdf5_name = ''
 first = True # Indicating first file
 
 for files in file_list:
+    file_iso=pd.DataFrame(columns=['IsoRating','File','Channel','Solution','Cluster','wf count','ISIs (%)','L-Ratio','Post-Process Date'])
     skip = False # Set skipping already done files to false
     if files[-2:] == 'h5': # If a specific file is an .h5 file
         hdf5_name = files # Make that the current file
@@ -187,11 +189,25 @@ for files in file_list:
                 # Load data from the chosen electrode and solution
                 spike_waveforms = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1))
                 spike_times = np.load('./'+ hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1))
-                pca_slices = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1))
                 energy = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1))
                 amplitudes = np.load('./'+ hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1))
                 predictions = np.load('./'+ hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i/predictions.npy' % ((electrode_num+1), num_clusters))
    
+            
+                # Scale the dejittered slices by the energy of the waveforms
+                scaled_slices, energy = clust.scale_waveforms(spike_waveforms)
+                
+                # Run PCA on the scaled waveforms
+                pca_slices, explained_variance_ratio = clust.implement_pca(scaled_slices)
+                
+                #get cumulative variance explained
+                cumulvar=np.cumsum(explained_variance_ratio)
+                pvar=float(params['variance explained'])
+                usepvar=int(params['use percent variance'])
+                userpc=int(params['principal component n'])
+                if usepvar==1:n_pc=np.where(cumulvar>pvar)[0][0]+1
+                else: n_pc=userpc
+                
             	# If the user asked to split/re-cluster, ask them for the clustering parameters and perform clustering
                 split_predictions = []
                 chosen_split = 0
@@ -210,7 +226,6 @@ for files in file_list:
                         n_restarts = 10
             		# Make data array to be put through the GMM - 5 components: 3 PCs, scaled energy, amplitude
                     this_cluster = np.where(predictions == int(clusters[0]))[0]
-                    n_pc = 3
                     data = np.zeros((len(this_cluster), n_pc + 2))	
                     data[:,2:] = pca_slices[this_cluster,:n_pc]
                     data[:,0] = energy[this_cluster]/np.max(energy[this_cluster])
@@ -244,12 +259,38 @@ for files in file_list:
             
                     plt.show()
             		# Ask the user for the split clusters they want to choose
-                    chosen_split = easygui.multchoicebox(msg = 'Which split cluster do you want to choose? Hit cancel to return to electrode selection.', choices = tuple([str(i) for i in range(n_clusters)]))
+                    chosen_split = easygui.multchoicebox(msg = 'Which split cluster(s) do you want to choose? Hit cancel to return to electrode selection.', choices = tuple([str(i) for i in range(n_clusters)]))
                     try:
-                        if len(chosen_split)>1: 
-                            lencheck=easygui.ynbox(msg="Multiple splits selected, is this correct? If not you will be returned to electrode selection, and results will not be saved.")
-                            if ast.literal_eval(lencheck): pass
-                            else: continue
+                        len(chosen_split)
+                        those_cluster = np.where(predictions != int(clusters[0]))[0]
+                        thosedata = np.zeros((len(those_cluster), n_pc + 2))	
+                        thosedata[:,2:] = pca_slices[those_cluster,:n_pc]
+                        thosedata[:,0] = energy[those_cluster]/np.max(energy[those_cluster])
+                        thosedata[:,1] = np.abs(amplitudes[those_cluster])/np.max(np.abs(amplitudes[those_cluster]))
+                        alldata=np.concatenate((thosedata,data),axis=0)
+                        all_predictions=np.concatenate((np.zeros(np.shape(thosedata)[0])-1,split_predictions))
+                        Lrats=clust.get_Lratios(alldata,all_predictions)
+                        for choice in chosen_split:
+                            cluster=int(choice)
+                            split_points = np.where(split_predictions == cluster)[0]				
+            				# plt.figure(cluster)
+                            slices_dejittered = spike_waveforms[this_cluster, :]		# Waveforms and times from the chosen cluster
+                            times_dejittered = spike_times[this_cluster]
+                            times_dejittered = times_dejittered[split_points]		# Waveforms and times from the chosen split of the chosen cluster
+                            ISIs = np.ediff1d(np.sort(times_dejittered))/40.0       # Get number of points between waveforms and divide by frequency per ms (40)
+                            violations1 = 100.0*float(np.sum(ISIs < 1.0)/split_points.shape[0])
+                            violations2 = 100.0*float(np.sum(ISIs < 2.0)/split_points.shape[0])
+                            fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[split_points, :], x,dir_name=dsdir)
+            				# plt.plot(x-15, slices_dejittered[split_points, :].T, linewidth = 0.01, color = 'red')
+                            ax.set_xlabel('Sample (40 points per ms)')
+                            ax.set_ylabel('Voltage (microvolts)')
+                            ax.set_title("Split Cluster{:d}, 2ms ISI violations={:.1f} percent".format(cluster, violations2) + "\n" + "1ms ISI violations={:.1f}%, Number of waveforms={:d}".format(violations1, split_points.shape[0]))
+                            fig.savefig(figname,dpi=image_size)
+                            clcheck=easygui.ynbox(msg='Please verify that this cluster is correct.\nL-Ratio: {}'.format(round(Lrats[int(choice)],3)),image=figname)
+                            if clcheck: pass
+                            else: 
+                                easygui.msgbox('You indicated that a split cluster was not correct. Results have not been saved.')
+                                continue
                     except:
                         continue
             
@@ -309,6 +350,21 @@ for files in file_list:
                         unit_description.append()
                         table.flush()
                         hf5.flush()
+                        choice=int(chosen_split(cluster))
+                        split_points = np.where(split_predictions == choice)[0]
+                        violations1 = 100.0*float(np.sum(ISIs < 1.0)/split_points.shape[0])
+                        this_iso={
+                            'IsoRating':'TBD',
+                            'File':os.path.splitext(hdf5_name)[0],
+                            'Channel':electrode_num+1,
+                            'Solution':num_clusters,
+                            'Cluster':'s',
+                            'wf count':len(np.where(split_predictions==clusters[0])[0]),
+                            'ISIs (%)':round(violations1,1),
+                            'L-Ratio':round(Lrats[int(chosen_split[cluster])],3),
+                            }
+                        file_iso=file_iso.append(this_iso,ignore_index=True)
+
             
             	# If only 1 cluster was chosen (and it wasn't split), add that as a new unit in /sorted_units. Ask if the isolated unit is an almost-SURE single unit
                 elif len(clusters) == 1:
@@ -319,31 +375,30 @@ for files in file_list:
                     ax.set_ylabel('Voltage (microvolts)')
                     ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(clusters[0]))
                     fig.savefig(figname,dpi=image_size)
-                    sys.exit()
                     iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
-                    isostring='IsoI-NN: '+str(iso['IsoINN'][int(clusters[0])])+'\nIsoI-BG: '+str(iso['IsoIBG'][int(clusters[0])])
-                    unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\n"+isostring,image=figname))
-                    if ast.literal_eval(unit_verify): pass
+                    unit_verify = easygui.ynbox(msg = "Please verify that this is the correct unit.\nL-Ratio: {}".format(iso['L-Ratio'][int(clusters[0])]),image=figname)
+                    if unit_verify:
+                        file_iso=file_iso.append(iso.loc[int(clusters[0])],ignore_index=True)
+                        hf5.create_group('/sorted_units', unit_name)
+                        unit_times = spike_times[np.where(predictions == int(clusters[0]))[0]]
+                        waveforms = hf5.create_array('/sorted_units/%s' % unit_name, 'waveforms', unit_waveforms)
+                        times = hf5.create_array('/sorted_units/%s' % unit_name, 'times', unit_times)
+                        channel = hf5.create_array('/sorted_units/%s' % unit_name, 'channel', unit_chan)
+                        unit_description['electrode_number'] = electrode_num
+                        unit_description['single_unit'] = int(1)
+                		# If the user says that this is a single unit, ask them whether its regular or fast spiking
+                        unit_description['regular_spiking'] = 1
+                        unit_description['fast_spiking'] = 0
+                        # if int(ast.literal_eval(single_unit)):
+                        #     unit_type = easygui.multchoicebox(msg = 'What type of unit is this (Regular spiking = Pyramidal cells, Fast spiking = PV+ interneurons)?', choices = ('regular_spiking', 'fast_spiking'))
+                        #     unit_description[unit_type[0]] = 1
+                        unit_description.append()
+                        table.flush()
+                        hf5.flush()
                     else: 
                         easygui.msgbox('You indicated that this cluster was incorrect. Results for this channel have not been saved.')
                         del unit_waveforms
                         continue
-                    hf5.create_group('/sorted_units', unit_name)
-                    unit_times = spike_times[np.where(predictions == int(clusters[0]))[0]]
-                    waveforms = hf5.create_array('/sorted_units/%s' % unit_name, 'waveforms', unit_waveforms)
-                    times = hf5.create_array('/sorted_units/%s' % unit_name, 'times', unit_times)
-                    channel = hf5.create_array('/sorted_units/%s' % unit_name, 'channel', unit_chan)
-                    unit_description['electrode_number'] = electrode_num
-                    unit_description['single_unit'] = int(1)
-            		# If the user says that this is a single unit, ask them whether its regular or fast spiking
-                    unit_description['regular_spiking'] = 1
-                    unit_description['fast_spiking'] = 0
-                    # if int(ast.literal_eval(single_unit)):
-                    #     unit_type = easygui.multchoicebox(msg = 'What type of unit is this (Regular spiking = Pyramidal cells, Fast spiking = PV+ interneurons)?', choices = ('regular_spiking', 'fast_spiking'))
-                    #     unit_description[unit_type[0]] = 1
-                    unit_description.append()
-                    table.flush()
-                    hf5.flush()
             
                 else:
             		# If the chosen units are going to be merged, merge them
@@ -357,7 +412,14 @@ for files in file_list:
                             else:
                                 unit_waveforms = np.concatenate((unit_waveforms, spike_waveforms[np.where(predictions == int(cluster))[0], :]))
                                 unit_times = np.concatenate((unit_times, spike_times[np.where(predictions == int(cluster))[0]]))
-            
+               
+                        data = np.zeros((len(pca_slices), n_pc + 2))
+                        data[:,2:] = pca_slices[:,:n_pc]
+                        data[:,0] = energy[:]/np.max(energy)
+                        data[:,1] = np.abs(amplitudes)/np.max(np.abs(amplitudes))
+                        merge_predictions=np.array([int(clusters[0]) if str(x) in clusters else x for x in predictions])
+                        Lrats=clust.get_Lratios(data,merge_predictions)
+                        
             			# Show the merged cluster to the user, and ask if they still want to merge
                         x = np.arange(len(unit_waveforms[0])/10) + 1
                         fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(unit_waveforms, x,dir_name=dsdir)
@@ -365,16 +427,26 @@ for files in file_list:
                         ax.set_xlabel('Sample (40 points per ms)')
                         ax.set_ylabel('Voltage (microvolts)')
                         fig.savefig(figname,dpi=image_size)
-             
+                        
             			# Warn the user about the frequency of ISI violations in the merged unit
                         ISIs = np.ediff1d(np.sort(unit_times))/40.0       # Get number of points between waveforms and divide by frequency per ms (40)
                         violations1 = 100.0*float(np.sum(ISIs < 1.0)/len(unit_times))
                         violations2 = 100.0*float(np.sum(ISIs < 2.0)/len(unit_times))
-                        proceed = str(easygui.ynbox(image=figname,msg = 'The merged cluster has %.1f percent (<2ms) and %.1f percent (<1ms) ISI violations out of %i total waveforms. Do you still want to merge these clusters into one unit?' % (violations2, violations1, len(unit_times))))
-                        proceed = ast.literal_eval(proceed)
-            
+                        proceed = easygui.ynbox(image=figname,msg = 'The merged cluster has %.1f percent (<2ms) and %.1f percent (<1ms) ISI violations out of %i total waveforms. Do you still want to merge these clusters into one unit?' % (violations2, violations1, len(unit_times))+'\nL-ratio of merged clusters:{}'.format(round(Lrats[int(clusters[0])],3)))
+                        
             			# Create unit if the user agrees to proceed, else abort and go back to start of the loop 
                         if proceed:	
+                            this_iso={
+                                'IsoRating':'TBD',
+                                'File':os.path.splitext(hdf5_name)[0],
+                                'Channel':electrode_num+1,
+                                'Solution':num_clusters,
+                                'Cluster':'m',
+                                'wf count':len(np.where(merge_predictions==clusters[0])[0]),
+                                'ISIs (%)':round(violations1,1),
+                                'L-Ratio':round(Lrats[int(clusters[0])],3),
+                                }
+                            file_iso=file_iso.append(this_iso,ignore_index=True)
                             hf5.create_group('/sorted_units', unit_name)
                             waveforms = hf5.create_array('/sorted_units/%s' % unit_name, 'waveforms', unit_waveforms)
                             times = hf5.create_array('/sorted_units/%s' % unit_name, 'times', unit_times)
@@ -383,7 +455,7 @@ for files in file_list:
                             unit_description['single_unit'] = int(1)
             				# If the user says that this is a single unit, ask them whether its regular or fast spiking
                             unit_description['regular_spiking'] = 1
-                            unit_description['fast_spiking'] = 0
+                            unit_description['fast_mspiking'] = 0
                             # if int(ast.literal_eval(single_unit)):
                             #     unit_type = easygui.multchoicebox(msg = 'What type of unit is this (Regular spiking = Pyramidal cells, Fast spiking = PV+ interneurons)?', choices = ('regular_spiking', 'fast_spiking'))
                             #     unit_description[unit_type[0]] = 1
@@ -406,8 +478,7 @@ for files in file_list:
                             ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(cluster))
                             fig.savefig(figname,dpi=image_size)
                             iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
-                            isostring='IsoI-NN: '+str(iso['IsoINN'][int(cluster)])+'\nIsoI-BG: '+str(iso['IsoIBG'][int(cluster)])
-                            unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\n"+isostring,image=figname))
+                            unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\nL-Ratio: {}".format(iso['L-Ratio'][int(cluster)]),image=figname))
                             if ast.literal_eval(unit_verify): pass
                             else: 
                                 bad_cluster=True
@@ -415,6 +486,7 @@ for files in file_list:
                         del unit_waveforms
                         if bad_cluster==False:
                             for cluster in clusters:
+                                file_iso=file_iso.append(iso.loc[int(cluster)],ignore_index=True)
                                 hf5.create_group('/sorted_units', unit_name)
                                 unit_waveforms = spike_waveforms[np.where(predictions == int(cluster))[0], :]
                                 unit_times = spike_times[np.where(predictions == int(cluster))[0]]
@@ -445,7 +517,7 @@ for files in file_list:
             except Exception as e:
                 easygui.msgbox("An error occured, you will be returned to electrode selection\n\nError message:"+str(e))
                 
-        
+#NEED TO ADD SPLIT AND MERGE TO TODAY ISO AS WELL AS OUTPUTS
         #################   Initialize Data Collection For JSON File   ########################
         
         filename = ("R:\\Autobots Roll Out\\%s\\NewNexFiles\\%s" % (UserName, hdf5_name[:-3]))
@@ -542,7 +614,12 @@ for files in file_list:
         with open("R:\\Autobots Roll Out\\%s\\JSON_Files\\%s.json" % (UserName, hdf5_name[:-3]), "w") as write_file:
             json.dump(data, write_file)
         print("JSON File Created")
-
+        if not os.path.isfile("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv'):
+            file_iso.to_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
+        else: 
+            all_iso=pd.read_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
+            all_iso=all_iso.append(file_iso,ignore_index=True)
+            all_iso.to_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
 try: shutil.rmtree(temp_dir)
 except: pass
         

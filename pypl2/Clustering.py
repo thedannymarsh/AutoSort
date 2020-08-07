@@ -104,14 +104,15 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 
 def get_Lratios(data,predictions):
     #calculate L ratios
-    Lrats=[]
-    for ref_cluster in range(max(predictions)+1):
+    Lrats={}
+    for ref_cluster in np.sort(np.unique(predictions)):
+        if ref_cluster<0: continue
         L=0
         ref_mean=np.mean(data[np.where(predictions==ref_cluster)],axis=0)
         ref_covar_I=linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
         for point in np.where(predictions[:] != ref_cluster)[0]:
             L+=1-chi2.cdf((mahalanobis(data[point, :], ref_mean, ref_covar_I))**2,np.shape(data)[1])
         Lratio=L/len(np.where(predictions==ref_cluster)[0])    
-        Lrats.append(Lratio)
+        Lrats[ref_cluster]=Lratio
     return Lrats
 

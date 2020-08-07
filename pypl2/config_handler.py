@@ -14,7 +14,7 @@ Created on Mon Apr 13 10:08:58 2020
 import os
 import configparser
 
-config_ver=4
+config_ver=5
 
 def do_the_config(path=''):
     if os.name=='posix':
@@ -33,7 +33,7 @@ def do_the_config(path=''):
 def default_config(path):
     config=configparser.ConfigParser()
     config['Run Settings']={'Resort Limit':'3','Minimum Licks':'1000','Cores Used':'8',
-                            'Weekday Run':'1','Weekend Run':'4','Run Type':'Auto','Manual Run':'2'}
+                            'Weekday Run':'2','Weekend Run':'8','Run Type':'Auto','Manual Run':'2'}
     config['Paths']={'Pl2 To-Run Path':r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted','Running Path':r'R:\Dannymarsh Sorting Emporium\running_files',
                      'Results Path':r'R:\Dannymarsh Sorting Emporium\Results','Completed Pl2 Path':r'R:\Dannymarsh Sorting Emporium\completed_pl2',
                      'Use Paths':'1','Else Path':''}

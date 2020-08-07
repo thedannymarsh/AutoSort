@@ -545,7 +545,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             ISIList=[]
             for cluster in range(i+3):
                 cluster_points = np.where(predictions[:] == cluster)[0]
-                fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"datashader_temp_el" + str(electrode_num+1))
+                fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"_datashader_temp_el" + str(electrode_num+1))
                 ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
                 ax.set_ylabel('Voltage (microvolts)')
                 ax.set_title('Cluster%i' % cluster)
@@ -574,9 +574,9 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 'Cluster':range(i+3),
                 'wf count':[len(np.where(predictions[:] == cluster)[0]) for cluster in range(i+3)],
                 'ISIs (%)': ISIList,
-                'L-Ratio': [round(x,3) for x in Lrats],
+                'L-Ratio': [round(Lrats[cl],3) for cl in range(i+3)],
                 })
-
+            isodf.to_csv(os.path.splitext(hdf5_name)[0] +'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1, i+3),index=False)
             #output this all in a plot in the plots folder and replace the ISI plot in superplots
             for cluster in range(i+3):
                 text='wf count: \n1 ms ISIs: \nL-Ratio: ' #package text to be plotted
@@ -645,6 +645,8 @@ def compile_isoi(full_filename,maxclust=7,Lrat_cutoff=.1):
                 errorfiles=errorfiles.append([{'channel':channel[-1],'solution':soln,'file':os.path.split(path)[0]}])
         channel_isoi.to_csv('{}/{}/{}_iso_info.csv'.format(path,channel,channel),index=False) #output data for the whole channel to the proper folder
         file_isoi=file_isoi.append(channel_isoi) #add this channel's info to the whole file info
+        try: file_isoi=file_isoi.drop(columns=['Unnamed: 0'])
+        except: pass
     with pd.ExcelWriter(os.path.split(path)[0]+'/{}_compiled_isoi.xlsx'.format(os.path.split(path)[-1]),engine='xlsxwriter') as outwrite:
         #once the file data is compiled, write to to an excel file
         file_isoi.to_excel(outwrite,sheet_name='iso_data',index=False)
@@ -657,8 +659,8 @@ def compile_isoi(full_filename,maxclust=7,Lrat_cutoff=.1):
         orangen= workbook.add_format({'bg_color':'orange'})
         yellen = workbook.add_format({'bg_color':'yellow'})
         #add conditional formatting based on ISI's
-        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR($G2>.5,H2<{})'.format(str(Lrat_cutoff)),'format':yellen}) 
-        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR(AND($G2>.5,H2<{}),$G2>1)'.format(str(Lrat_cutoff)),'format':orangen}) 
-        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'AND($G2>1,H2<{})'.format(str(Lrat_cutoff)),'format':redden}) 
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=AND($G2>1,$H2>{})'.format(str(Lrat_cutoff)),'format':redden}) 
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR(AND($G2>.5,$H2>{}),$G2>1)'.format(str(Lrat_cutoff)),'format':orangen})        
+        worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR($G2>.5,$H2>{})'.format(str(Lrat_cutoff)),'format':yellen}) 
         outwrite.save() #need to get the correct ISI column here
         
