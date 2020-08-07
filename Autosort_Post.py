@@ -260,6 +260,7 @@ for files in file_list:
                     plt.show()
             		# Ask the user for the split clusters they want to choose
                     chosen_split = easygui.multchoicebox(msg = 'Which split cluster(s) do you want to choose? Hit cancel to return to electrode selection.', choices = tuple([str(i) for i in range(n_clusters)]))
+                    sys.exit()
                     try:
                         len(chosen_split)
                         those_cluster = np.where(predictions != int(clusters[0]))[0]
@@ -319,6 +320,7 @@ for files in file_list:
             	# If the user re-clustered/split clusters, add the chosen clusters in split_clusters
                 if re_cluster:
                     p=0
+                    sys.exit()
                     for cluster in range(len(chosen_split)):
                         p = p+1
                         if p>1:
@@ -359,7 +361,7 @@ for files in file_list:
                             'Channel':electrode_num+1,
                             'Solution':num_clusters,
                             'Cluster':'s',
-                            'wf count':len(np.where(split_predictions==clusters[0])[0]),
+                            'wf count':'1',
                             'ISIs (%)':round(violations1,1),
                             'L-Ratio':round(Lrats[int(chosen_split[cluster])],3),
                             }
@@ -373,9 +375,9 @@ for files in file_list:
                     fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(unit_waveforms, x,dir_name=dsdir)
                     ax.set_xlabel('Sample (40 points per ms)')
                     ax.set_ylabel('Voltage (microvolts)')
-                    ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(clusters[0]))
+                    ax.set_title("Channel: "+str(electrode_num+1)+", Solution: "+str(num_clusters)+", Cluster: "+str(clusters[0]))
                     fig.savefig(figname,dpi=image_size)
-                    iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
+                    iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1,num_clusters))
                     unit_verify = easygui.ynbox(msg = "Please verify that this is the correct unit.\nL-Ratio: {}".format(iso['L-Ratio'][int(clusters[0])]),image=figname)
                     if unit_verify:
                         file_iso=file_iso.append(iso.loc[int(clusters[0])],ignore_index=True)
@@ -442,7 +444,7 @@ for files in file_list:
                                 'Channel':electrode_num+1,
                                 'Solution':num_clusters,
                                 'Cluster':'m',
-                                'wf count':len(np.where(merge_predictions==clusters[0])[0]),
+                                'wf count':len(np.where(merge_predictions==int(clusters[0]))[0]),
                                 'ISIs (%)':round(violations1,1),
                                 'L-Ratio':round(Lrats[int(clusters[0])],3),
                                 }
@@ -455,7 +457,7 @@ for files in file_list:
                             unit_description['single_unit'] = int(1)
             				# If the user says that this is a single unit, ask them whether its regular or fast spiking
                             unit_description['regular_spiking'] = 1
-                            unit_description['fast_mspiking'] = 0
+                            unit_description['fast_spiking'] = 0
                             # if int(ast.literal_eval(single_unit)):
                             #     unit_type = easygui.multchoicebox(msg = 'What type of unit is this (Regular spiking = Pyramidal cells, Fast spiking = PV+ interneurons)?', choices = ('regular_spiking', 'fast_spiking'))
                             #     unit_description[unit_type[0]] = 1
@@ -475,9 +477,9 @@ for files in file_list:
                             fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(unit_waveforms, x,dir_name=dsdir)
                             ax.set_xlabel('Sample (40 points per ms)')
                             ax.set_ylabel('Voltage (microvolts)')
-                            ax.set_title("Channel: "+str(electrode_num)+", Solution: "+str(num_clusters)+", Cluster: "+str(cluster))
+                            ax.set_title("Channel: "+str(electrode_num+1)+", Solution: "+str(num_clusters)+", Cluster: "+str(cluster))
                             fig.savefig(figname,dpi=image_size)
-                            iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num,num_clusters))
+                            iso=pd.read_csv(hdf5_name[:-3]+'/clustering_results/electrode {}/clusters{}/isoinfo.csv'.format(electrode_num+1,num_clusters))
                             unit_verify = str(easygui.ynbox(msg = "Please verify that this is the correct unit.\nL-Ratio: {}".format(iso['L-Ratio'][int(cluster)]),image=figname))
                             if ast.literal_eval(unit_verify): pass
                             else: 
@@ -594,7 +596,7 @@ for files in file_list:
                 tempPoint = [] # For holding float type waveforms
                 for b in range(len(tempWave)): # For all points in each waveform
                     tempPoint.append(tempWave[b].item()) # Convert numpy float64 to float
-                waveforms.append(tempPoint) # Append each float waveform to list
+                waveforms.append(tempPoint) # Append each float waveform to list    
             data["Waveforms"].append({ # Append data to the data variable in JSON format
                     'SPK%02d%s_wf' % (int(channel[0]), l) : list(waveforms)
                     })
@@ -614,11 +616,15 @@ for files in file_list:
         with open("R:\\Autobots Roll Out\\%s\\JSON_Files\\%s.json" % (UserName, hdf5_name[:-3]), "w") as write_file:
             json.dump(data, write_file)
         print("JSON File Created")
+        file_iso['Post-Process Date']=str(date.today())
         if not os.path.isfile("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv'):
             file_iso.to_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
         else: 
             all_iso=pd.read_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
             all_iso=all_iso.append(file_iso,ignore_index=True)
+            for column in all_iso.columns:
+                if 'Unnamed' in column:
+                    all_iso=all_iso.drop(columns=[column])
             all_iso.to_csv("R:\\Autobots Roll Out\\"+UserName+'/Info_Files/Isolation Info.csv')
 try: shutil.rmtree(temp_dir)
 except: pass

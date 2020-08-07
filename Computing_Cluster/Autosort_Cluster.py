@@ -93,7 +93,8 @@ if __name__ == '__main__':
                     print("All channels were sorted successfully!")
                 elif len(bad_runs)==1:
                     print('Channel',bad_runs[0],'was not sorted successfully, resorting...')
-                    AS.Processing(bad_runs[0]-1,filename,params)
+                    try: AS.Processing(bad_runs[0]-1,filename,params)
+                    except: traceback.print_exc()
                 else:
                     if len(bad_runs)>=elNum:
                         raise Exception("Sorting failed on every channel. Do not close python, talk to Daniel")
