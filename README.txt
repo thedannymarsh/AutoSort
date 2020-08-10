@@ -153,3 +153,4 @@ config version - indicates config version. Do not modify this value
 ###References
 DOI 10.25080/shinma-7f4c6e7-00e (Katz)
 https://doi.org/10.1016/j.neuroscience.2004.09.066 (L-Ratio)
+https://plexon.com/software-downloads/#software-downloads-SDKs (Python pl2 API)
