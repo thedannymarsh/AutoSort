@@ -31,6 +31,8 @@ def do_the_config(path=''):
         else: return read_config(path)
 
 def default_config(path):
+    if not os.path.isdir(os.path.split(path)[0]):
+        os.mkdir(os.path.split(path)[0])
     config=configparser.ConfigParser()
     config['Run Settings']={'Resort Limit':'3','Minimum Licks':'1000','Cores Used':'8',
                             'Weekday Run':'2','Weekend Run':'8','Run Type':'Auto','Manual Run':'2'}
