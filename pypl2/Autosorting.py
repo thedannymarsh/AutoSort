@@ -374,76 +374,75 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             
             # Delete filtered electrode from memory
             del filt_el, test_el
-            
-            break
+
+            if len(slices)==0 or len(spike_times)==0:
+                with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
+                    txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                    
+            else:
+                    
+                # Dejitter these spike waveforms, and get their maximum amplitudes
+                slices_dejittered, times_dejittered = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
+                amplitudes = np.min(slices_dejittered, axis = 1)
+                
+                # Delete the original slices and times now that dejittering is complete
+                del slices; del spike_times
+                
+                # Save these slices/spike waveforms and their times to their respective folders
+                np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1), slices_dejittered)
+                np.save(hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1), times_dejittered)
+                
+                # Scale the dejittered slices by the energy of the waveforms
+                scaled_slices, energy = clust.scale_waveforms(slices_dejittered)
+                
+                # Run PCA on the scaled waveforms
+                pca_slices, explained_variance_ratio = clust.implement_pca(scaled_slices)
+                
+                #get cumulative variance explained
+                cumulvar=np.cumsum(explained_variance_ratio)
+                graphvar=list(cumulvar[0:np.where(cumulvar>.999)[0][0]+1])
+        
+                if usepvar==1:n_pc=np.where(cumulvar>pvar)[0][0]+1
+                else: n_pc=userpc
+                
+                #note need to add userpvar, usepvar, and n_pc to params
+                # Save the pca_slices, energy and amplitudes to the spike_waveforms folder for this electrode
+                np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1), pca_slices)
+                np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1), energy)
+                np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1), amplitudes)
+                
+                
+                # Create file for saving plots, and plot explained variance ratios of the PCA
+                fig = plt.figure()
+                x = np.arange(0,len(graphvar)+1)
+                graphvar.insert(0,0)
+                plt.plot(x, graphvar)
+                plt.vlines(n_pc,0,1,colors='r')
+                plt.annotate(str(n_pc)+" PC's used for GMM.\nVariance explained= " + str(round(cumulvar[n_pc-1],3))+"%.",(n_pc+.25,cumulvar[n_pc-1]-.1))
+                plt.title('Variance ratios explained by PCs (cumulative)')
+                plt.xlabel('PC #')
+                plt.ylabel('Explained variance ratio')
+                fig.savefig(hdf5_name[:-3] +'/Plots/%i/pca_variance.png' % (electrode_num+1), bbox_inches='tight')
+                plt.close("all")
+                
+                # Make an array of the data to be used for clustering, and delete pca_slices, scaled_slices, energy and amplitudes
+                data = np.zeros((len(pca_slices), n_pc + 2))
+                data[:,2:] = pca_slices[:,:n_pc]
+                data[:,0] = energy[:]/np.max(energy)
+                data[:,1] = np.abs(amplitudes)/np.max(np.abs(amplitudes))
+                del pca_slices; del scaled_slices; del energy
+                break
         except MemoryError:
             if retried==1:
                 traceback.print_exc()
-                # return
-            warnings.warn("Warning, could not allocate memory for electrode {}".format(electrode_num+1))
+                return
+            warnings.warn("Warning, could not allocate memory for electrode {}. This program will wait and try again in a bit.".format(electrode_num+1))
             retried=1
             time.sleep(300)
         except: 
             traceback.print_exc()
-            # return
-    
-    if len(slices)==0 or len(spike_times)==0:
-        with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
-            txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
-            
-    else:
-            
-        # Dejitter these spike waveforms, and get their maximum amplitudes
-        slices_dejittered, times_dejittered = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
-        amplitudes = np.min(slices_dejittered, axis = 1)
-        
-        # Delete the original slices and times now that dejittering is complete
-        del slices; del spike_times
-        
-        # Save these slices/spike waveforms and their times to their respective folders
-        np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1), slices_dejittered)
-        np.save(hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1), times_dejittered)
-        
-        # Scale the dejittered slices by the energy of the waveforms
-        scaled_slices, energy = clust.scale_waveforms(slices_dejittered)
-        
-        # Run PCA on the scaled waveforms
-        pca_slices, explained_variance_ratio = clust.implement_pca(scaled_slices)
-        
-        #get cumulative variance explained
-        cumulvar=np.cumsum(explained_variance_ratio)
-        graphvar=list(cumulvar[0:np.where(cumulvar>.999)[0][0]+1])
-
-        if usepvar==1:n_pc=np.where(cumulvar>pvar)[0][0]+1
-        else: n_pc=userpc
-        
-        #note need to add userpvar, usepvar, and n_pc to params
-        # Save the pca_slices, energy and amplitudes to the spike_waveforms folder for this electrode
-        np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1), pca_slices)
-        np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1), energy)
-        np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1), amplitudes)
-        
-        
-        # Create file for saving plots, and plot explained variance ratios of the PCA
-        fig = plt.figure()
-        x = np.arange(0,len(graphvar)+1)
-        graphvar.insert(0,0)
-        plt.plot(x, graphvar)
-        plt.vlines(n_pc,0,1,colors='r')
-        plt.annotate(str(n_pc)+" PC's used for GMM.\nVariance explained= " + str(round(cumulvar[n_pc-1],3))+"%.",(n_pc+.25,cumulvar[n_pc-1]-.1))
-        plt.title('Variance ratios explained by PCs (cumulative)')
-        plt.xlabel('PC #')
-        plt.ylabel('Explained variance ratio')
-        fig.savefig(hdf5_name[:-3] +'/Plots/%i/pca_variance.png' % (electrode_num+1), bbox_inches='tight')
-        plt.close("all")
-        
-        # Make an array of the data to be used for clustering, and delete pca_slices, scaled_slices, energy and amplitudes
-        data = np.zeros((len(pca_slices), n_pc + 2))
-        data[:,2:] = pca_slices[:,:n_pc]
-        data[:,0] = energy[:]/np.max(energy)
-        data[:,1] = np.abs(amplitudes)/np.max(np.abs(amplitudes))
-        del pca_slices; del scaled_slices; del energy
-                
+            return
+                      
         # Run GMM, from 3 to max_clusters
         for i in range(max_clusters-2):
             #print("Creating PCA plots.")
