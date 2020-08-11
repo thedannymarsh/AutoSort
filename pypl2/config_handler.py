@@ -18,7 +18,7 @@ config_ver=5
 
 def do_the_config(path=''):
     if os.name=='posix':
-        path=os.path.expanduser('~')+'/Autosort/Autosort_configs.ini'
+        path=os.path.expanduser('~')+'/Autosort/Autosort_config.ini'
         if not os.path.isfile(path):
             linux_config(path)
         return read_config(path)

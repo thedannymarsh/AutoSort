@@ -585,7 +585,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 cv2_im_rgb=cv2.cvtColor(blank,cv2.COLOR_BGR2RGB)   #convert to color space pillow can use
                 pil_im=Image.fromarray(cv2_im_rgb)  #get pillow image
                 draw=ImageDraw.Draw(pil_im)   #create draw object for text
-                font=ImageFont.truetype("R:/Daniel/Repositories/Autosort/pypl2/bin/arial.ttf", 60)  #use arial font
+                font=ImageFont.truetype(os.path.split(__file__)[0]+"/bin/arial.ttf", 60) #use arial font
                 draw.multiline_text((90, 100), text, font=font,fill=(0,0,0,255),spacing=50,align='left')   #draw the text
                 draw.multiline_text((380, 100), text2, font=font,fill=(0,0,0,255),spacing=50)   #draw the text
                 isoimg=cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)  #convert back to openCV image
