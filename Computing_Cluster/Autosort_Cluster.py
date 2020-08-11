@@ -21,12 +21,12 @@ if __name__ == '__main__':
     params=config_handler.do_the_config()
     print('Running Script: '+__file__)
     try:
-        n_files=params['n-files']
+        n_files=int(params['n-files'])
         to_run_path=params['h5 to-run path'] #path where files to run on were placed
         running_path=params['running path'] #path where files will be stored while the script is running on them
         outpath=params['results path'] #path where output will be generated
-        num_cpu=params['cores used']
-        resort_limit=params['resort limit']
+        num_cpu=int(params['cores used'])
+        resort_limit=int(params['resort limit'])
         filedates=[]
         runfiles=[]
         checkfiles=os.listdir(to_run_path) #get the names of the files to be run
