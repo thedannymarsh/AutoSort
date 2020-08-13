@@ -515,9 +515,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             
         for ref_cluster in range(i+3):
             fig = plt.figure()
-            # ref_mean = model.means_[ref_cluster, :]
             ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
-            # ref_covar_I = linalg.inv(model.covariances_[ref_cluster, :, :])
             ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
             all_mah=[]
             for other_cluster in range(i+3):
@@ -527,7 +525,30 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                       all_mah.append(mahalanobis(data[point, :], ref_mean, ref_covar_I)) 
                       mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
                 # Plot histogram of Mahalanobis distances
-                y,binEdges=np.histogram(mahalanobis_dist)
+                y,binEdges=np.histogram(mahalanobis_dist,bins=25)
+                bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
+                plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
+            plt.xlabel('Mahalanobis distance')
+            plt.ylabel('Frequency')
+            plt.legend(loc = 'upper right', fontsize = 8)
+            plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
+            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
+            plt.close("all")
+        
+        
+        for ref_cluster in range(i+3):
+            fig = plt.figure()
+            ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
+            ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
+            all_mah=[]
+            for other_cluster in range(i+3):
+                mahalanobis_dist = []
+                other_cluster_points = np.where(predictions[:] == other_cluster)[0]
+                for point in other_cluster_points:
+                      all_mah.append(mahalanobis(data[point, :], ref_mean, ref_covar_I)) 
+                      mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
+                # Plot histogram of Mahalanobis distances
+                y,binEdges=np.histogram(mahalanobis_dist,bins=range(21))
                 bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
                 plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
             plt.xlabel('Mahalanobis distance')

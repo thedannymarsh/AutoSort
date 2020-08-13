@@ -12,7 +12,7 @@ import warnings
 import easygui
 import traceback
 
-path=r'R:\Dannymarsh Sorting Emporium\Single Channel Resorts\Daniel' #place your file containing path here if usepaths=0
+path=r'R:\Dannymarsh Sorting Emporium\Single Channel Resorts' #place your file containing path here if usepaths=0
 
 if __name__ == '__main__':
     num_cpu=1

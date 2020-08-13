@@ -6,11 +6,11 @@ Created on Tue Jun 30 13:46:50 2020
 """
 
 import os
-from pypl2.Autosorting_test import pl2_to_h5
+from pypl2.Autosorting import pl2_to_h5
 
-pl2_dir=r'R:\Daniel\Current Projects'
+pl2_dir=r'R:\Dannymarsh Sorting Emporium\Single Channel Resorts\Daniel'
 min_licks=1000  
-overwrite_h5=1 #change to 0 if you dont want to overwrite h5
+overwrite_h5=0 #change to 0 if you dont want to overwrite h5
 
 runfiles=os.listdir(pl2_dir)
 for file in runfiles:
