@@ -555,7 +555,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.ylabel('Frequency')
             plt.legend(loc = 'upper right', fontsize = 8)
             plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
+            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%itest.png' % ((electrode_num+1), i+3, ref_cluster))
             plt.close("all")
         
         # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
