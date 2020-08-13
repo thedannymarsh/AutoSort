@@ -535,7 +535,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
             plt.close("all")
         
-        
+        #possible new calcs
         for ref_cluster in range(i+3):
             fig = plt.figure()
             ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
