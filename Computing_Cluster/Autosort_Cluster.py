@@ -120,13 +120,13 @@ if __name__ == '__main__':
                 except Exception as e: 
                     warnings.warn("Warning: superplots unsuccessful!")
                     print(e)
-                try: AS.compile_isoi(filename,int(params['max clusters']))
+                try: AS.compile_isoi(filename,int(params['max clusters']),Lrat_cutoff=float(params['l-ratio cutoff']))
                 except Exception as e: 
                     warnings.warn("Warning: isolation information compilation unsuccessful!")
                     print(e)
             sort_time=time.time()-filestart
             print("That file ran for",(sort_time/3600),"hours.")        
-            AS.infofile(file,os.path.splitext(filename)[0],sort_time,__file__)
+            AS.infofile(file,os.path.splitext(filename)[0],sort_time,__file__,params)
         
     except Exception: #if an error occurs, reset everything and print out the error
         traceback.print_exc()

@@ -325,7 +325,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             pvar=float(params['variance explained'])
             usepvar=int(params['use percent variance'])
             userpc=int(params['principal component n'])
-            min_L=float(params['l-ratio cutoff'])
             
             
             # Open up hdf5 file, and load this electrode number
