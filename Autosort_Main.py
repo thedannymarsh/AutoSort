@@ -66,6 +66,9 @@ if __name__ == '__main__':
         for file in runfiles: #move files to the running path
             shutil.move(to_run_path+'\\'+file,running_path)
     
+    print('The following files will be sorted:')
+    print(runfiles)
+    
     ranfiles=runfiles.copy()
     for file in runfiles: #loop through each file
         if usepaths==0:
