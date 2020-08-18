@@ -43,7 +43,7 @@ remote_results_filepath='/data/home/dmarshal/Autosort/Results'
 
 min_licks=1000
 
-clustrun=10 #cutoff for uploading more files to the cluster
+clustrun=5 #cutoff for uploading more files to the cluster
 
 ### END USER PARAMETERS
 
