@@ -12,7 +12,7 @@ import shutil
 from paramiko import SSHClient
 from scp import SCPClient
 import sys
-from pypl2.Autosorting_3_1_1 import pl2_to_h5
+from pypl2.Autosorting import pl2_to_h5
 import contextlib
 
 ### USER PARAMETERS

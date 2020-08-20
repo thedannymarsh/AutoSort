@@ -8,7 +8,7 @@ Created on Tue Jun 30 13:46:50 2020
 import os
 from pypl2.Autosorting import pl2_to_h5
 
-pl2_dir=r'R:\Dannymarsh Sorting Emporium\Single Channel Resorts\Daniel'
+pl2_dir=r'R:\Dannymarsh Sorting Emporium\Single Channel Resorts\to-be resorted'
 min_licks=1000  
 overwrite_h5=0 #change to 0 if you dont want to overwrite h5
 
