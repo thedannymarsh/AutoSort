@@ -319,7 +319,6 @@ for files in file_list:
             	# If the user re-clustered/split clusters, add the chosen clusters in split_clusters
                 if re_cluster:
                     p=0
-                    sys.exit()
                     for cluster in range(len(chosen_split)):
                         p = p+1
                         if p>1:
