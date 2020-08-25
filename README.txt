@@ -1,7 +1,7 @@
 ###About
 Copyright (C) 2019-2020 Patricia Di Lorenzo & the Di Lorenzo Lab
 
-This python repository is a semi-supervised spike sorting/clustering algorithm adapted from the methods and code described in <Katz Article>
+This python repository is a semi-supervised spike sorting/clustering algorithm adapted from the methods and code described in Mukherjee, Wachutka, & Katz (2017).
 
 This program is designed to sort spikes into single, isolated units from continous electrophysiological recordings. Its main method of input is pl2 files, however, one could use it on other filetypes if the data were preprocessed into the necessary format (.h5 file containing the continuous signal from each electrode to be analyzed). Due to the limitations of the api used to parse data from .pl2 files, if this filetype is used, the program must be run on a windows computer. Otherwise it may be run on a Linux system.
 
@@ -33,8 +33,8 @@ Once all your configuration paramters have been set, usage is as follows:
 	-1 millisecond ISIs (Inter-Spike Intervals) must be less than or equal to .5%
 	-The waveform must be cellular
 	-The unit must be sufficiently separated, as determined by the mahalanobis distribution graph on the bottom right of the superplots. This is the mahalanobis distance between the cluster of interest and each other cluster, calculated with number of dimensions d, where d=(number of PC spaces used+2) (+2 because energy and waveform peak amplitude are also used in the GMM)
-	-Additionally, a unit can be immediately considered NOT isolated if its L-Ratio is greater than <TBD>
-
+	-Additionally, a unit can be immediately considered NOT isolated if its L-Ratio is greater than .1 
+L-Ratio is calculated as described in (Schmitzer-Torbert et al., 2005)
 The plot paths are structured as follows:
 e.g. ./superplots/5/4_clusters/Cluster_1.png
 Where 5 is the electrode number, 4_clusters is the solution (GMM looked for 4 different clusters), and Cluster_1 is the cluster of interest for the image.
@@ -65,7 +65,7 @@ Note: This step requires the presence of both the .h5 files, as well as the outp
 ###Pipeline
 The sorting pipeline functions as follows:
 -Pre-Processing: Continuous signal data (and behavioral data) is extracted from .pl2 files and packaged into .h5 files.
--Processing: The continuous electrode signal is analyzed in the processing step, which involves the following (for more detailed information, see <Katz Paper>:
+-Processing: The continuous electrode signal is analyzed in the processing step, which involves the following (for more detailed information, see Mukherjee et al (2017)):
 	-The electrode signal is cleaned and filtered
 	-Waveforms are extracted from this signal
 	-Waveforms are cleaned
@@ -114,7 +114,7 @@ max clusters - An integer representing the maximum cluster count to use for Gaus
 max iterations - Integer. Maximum GMM iterations (Default = 1000)
 convergence criterion - Float. GMM convergence criterion (Default = .0001)
 random restarts - Integer. Number of random restarts for GMM (Default = 10)
-l-ratio cutoff - Integer. If the L-ratio for every cluster is above this cutoff, isolation information will not be calculated (Default = <TBD>)
+l-ratio cutoff - Integer. If the L-ratio for every cluster is above this cutoff, isolation information will not be calculated (Default = .1)
 
 [Signal]
 disconnect voltage - Float. Voltage cutoff for disconnected headstage noise (in uV) (Default = 1500)
@@ -151,6 +151,6 @@ temporary dir - Directory where images will be temporarily stored while post-pro
 config version - indicates config version. Do not modify this value
 
 ###References
-DOI 10.25080/shinma-7f4c6e7-00e (Katz)
-https://doi.org/10.1016/j.neuroscience.2004.09.066 (L-Ratio)
-https://plexon.com/software-downloads/#software-downloads-SDKs (Python pl2 API)
+Mukherjee, Narendra & Wachutka, Joseph & Katz, Donald. (2017). Python meets systems neuroscience: affordable, scalable and open-source electrophysiology in awake, behaving rodents. 98-105.
+Schmitzer-Torbert N, Jackson J, Henze D, Harris K, Redish AD. Quantitative measures of cluster quality for use in extracellular recordings. Neuroscience. 2005;131:1–11.
+https://plexon.com/software-downloads/#software-downloads-SDKs (Plexon Python API)
