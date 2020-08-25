@@ -14,16 +14,14 @@ import sys
 import pandas as pd
 from datetime import date
 
-################################################### End user parameters
-
-#If the image directory does not exit, create it
+#Get parameters
 params=config_handler.do_the_config()
-
 reanalyze=int(params['reanalyze'])
 simple_GMM=int(params['simple gmm'])
 temp_dir=params['temporary dir']
 image_size=int(params['image size'])
 
+#If the image directory does not exit, create it
 if os.path.isdir(temp_dir):
     shutil.rmtree(temp_dir)
 os.mkdir(temp_dir)
@@ -42,7 +40,6 @@ for item in folderlist:
 
 
 # Ask current user for their user name
-
 UserName = easygui.choicebox(msg= 'Please select a user name, or click cancel to create a new user',choices=userlist)
 if UserName is None:
     UserName = easygui.enterbox(msg = 'Please enter a new username. This is used to identify where your data is stored.')
