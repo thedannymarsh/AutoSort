@@ -45,7 +45,7 @@ def default_config(path):
     config['Spike']={'Pre-time':'.2','Post-time':'.6','Sampling Rate':'40000'}
     config['Std Dev']={'Spike Detection':'2.0','Artifact Removal':'10.0'}
     config['PCA']={'Variance Explained':'.95','Use Percent Variance':'1','Principal Component n':'5'}
-    config['Post Process']={'reanalyze':'0','simple gmm':'1','image size':'70','temporary dir':r'C:\Users\DiLorenzoTech\tmp_python'}
+    config['Post Process']={'reanalyze':'0','simple gmm':'1','image size':'70','temporary dir':os.path.expanduser('~')+'\\tmp_python'}
     config['Version']={'config version':str(config_ver)}
     with open(path,'w') as configfile:
         config.write(configfile)
