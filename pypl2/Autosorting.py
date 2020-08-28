@@ -242,7 +242,7 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
             for n in range(len(spkcNames)):
                 os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
                 currSpkc = pl2_ad(filename, spkcNames[n])
-                spkcValues = list(a*1000000 for a in currSpkc.ad)
+                spkcValues = np.array(currSpkc.ad)*1000000
                 print("{:<15} {:<11} {}".format(spkcNames[n], int(currSpkc.adfrequency),  currSpkc.n))
 
                 ##################  Save Continuous to HDF5 File  ######################
@@ -490,39 +490,12 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                     fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/feature%ivs%i.png' % ((electrode_num+1), i+3, feature2, feature1))
                     plt.close("all")
     
-        for cluster in range(i+3):
-            fig = plt.figure()
-            cluster_points = np.where(predictions[:] == cluster)[0]
-            for other_cluster in range(i+3):
-                mahalanobis_dist = []
-                other_cluster_mean = model.means_[other_cluster, :]
-                other_cluster_covar_I = linalg.inv(model.covariances_[other_cluster, :, :])
-                for points in cluster_points:
-                     mahalanobis_dist.append(mahalanobis(data[points, :], other_cluster_mean, other_cluster_covar_I))
-                # Plot histogram of Mahalanobis distances
-                y,binEdges=np.histogram(mahalanobis_dist)
-                bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
-                plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
-            plt.xlabel('Mahalanobis distance')
-            plt.ylabel('Frequency')
-            plt.legend(loc = 'upper right', fontsize = 8)
-            plt.title('Mahalanobis distance of Cluster %i from all other clusters' % cluster)
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/OLD_Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, cluster))
-            plt.close("all")
-            
-            #correct mahalanobis calculations
-            
         for ref_cluster in range(i+3):
             fig = plt.figure()
             ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
             ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
-            all_mah=[]
             for other_cluster in range(i+3):
-                mahalanobis_dist = []
-                other_cluster_points = np.where(predictions[:] == other_cluster)[0]
-                for point in other_cluster_points:
-                      all_mah.append(mahalanobis(data[point, :], ref_mean, ref_covar_I)) 
-                      mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
+                mahalanobis_dist=[mahalanobis(data[point, :], ref_mean, ref_covar_I) for point in np.where(predictions[:] == other_cluster)[0]]
                 # Plot histogram of Mahalanobis distances
                 y,binEdges=np.histogram(mahalanobis_dist,bins=25)
                 bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
@@ -532,29 +505,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.legend(loc = 'upper right', fontsize = 8)
             plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
             fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
-            plt.close("all")
-        
-        #possible new calcs
-        for ref_cluster in range(i+3):
-            fig = plt.figure()
-            ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
-            ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
-            all_mah=[]
-            for other_cluster in range(i+3):
-                mahalanobis_dist = []
-                other_cluster_points = np.where(predictions[:] == other_cluster)[0]
-                for point in other_cluster_points:
-                      all_mah.append(mahalanobis(data[point, :], ref_mean, ref_covar_I)) 
-                      mahalanobis_dist.append(mahalanobis(data[point, :], ref_mean, ref_covar_I))
-                # Plot histogram of Mahalanobis distances
-                y,binEdges=np.histogram(mahalanobis_dist,bins=range(21))
-                bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
-                plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
-            plt.xlabel('Mahalanobis distance')
-            plt.ylabel('Frequency')
-            plt.legend(loc = 'upper right', fontsize = 8)
-            plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%itest.png' % ((electrode_num+1), i+3, ref_cluster))
             plt.close("all")
         
         # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.

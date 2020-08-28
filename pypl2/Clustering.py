@@ -6,12 +6,8 @@ from scipy.stats import chi2
 from scipy import linalg
 from scipy.spatial.distance import mahalanobis
 from sklearn.mixture import GaussianMixture
-import pylab as plt
 from sklearn.decomposition import PCA
-import os
-import subprocess
-import pandas as pd
-import shutil
+
 
 def get_filtered_electrode(el, freq = [300, 6000.0], sampling_rate = 40000.0):   #############################    MODIFIED    #####################################
     m, n = butter(2, [2.0*freq[0]/sampling_rate, 2.0*freq[1]/sampling_rate], btype = 'bandpass') 
@@ -52,7 +48,6 @@ def dejitter(slices, spike_times, spike_snapshot = [0.2, 0.6], sampling_rate = 4
     
     #slices_dejittered = np.zeros((len(slices)-1,300))
     slices_dejittered = []
-    slices_broken = []
     spike_times_dejittered = []
     for i in range(len(slices)):
         f = interp1d(x, slices[i])
@@ -105,14 +100,15 @@ def clusterGMM(data, n_clusters, n_iter, restarts, threshold):
 def get_Lratios(data,predictions):
     #calculate L ratios
     Lrats={}
+    df=np.shape(data)[1]
     for ref_cluster in np.sort(np.unique(predictions)):
         if ref_cluster<0: continue
-        L=0
         ref_mean=np.mean(data[np.where(predictions==ref_cluster)],axis=0)
         ref_covar_I=linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
-        for point in np.where(predictions[:] != ref_cluster)[0]:
-            L+=1-chi2.cdf((mahalanobis(data[point, :], ref_mean, ref_covar_I))**2,np.shape(data)[1])
-        Lratio=L/len(np.where(predictions==ref_cluster)[0])    
+        Ls=[1-chi2.cdf((mahalanobis(data[point, :], ref_mean, ref_covar_I))**2,df) for point in np.where(predictions[:] != ref_cluster)[0]]
+        Lratio=sum(Ls)/len(np.where(predictions==ref_cluster)[0])    
         Lrats[ref_cluster]=Lratio
     return Lrats
+
+
 
