@@ -514,7 +514,6 @@ for files in file_list:
             except Exception as e:
                 easygui.msgbox("An error occured, you will be returned to electrode selection\n\nError message:"+str(e))
                 
-#NEED TO ADD SPLIT AND MERGE TO TODAY ISO AS WELL AS OUTPUTS
         #################   Initialize Data Collection For JSON File   ########################
         
         filename = ("R:\\Autobots Roll Out\\%s\\NewNexFiles\\%s" % (UserName, hdf5_name[:-3]))
@@ -534,12 +533,11 @@ for files in file_list:
         tempName1 = [0]*len(evtNames) # For splitting events names
         for n in range(len(evtNames)): 
             tempName0[n] = str.split(evtNames[n], '/') # Split event names whereever "/" exists
-            tempName1[n] = str.split(tempName0[n][2], ' ') # Split event names whereever a space " " exists
-            evtNames[n]= tempName1[n][0] # Get event names 
+            evtNames[n] = str.split(tempName0[n][2], '(')[0][:-1] #get event names #change to work with spaces in tastant names
     
             #################   Get Event Timestamps   ########################
     
-            exec("event = hf5.root.events.%s[:]" % (evtNames[n])) # Get timestamps for each event
+            event=getattr(hf5.root.events,evtNames[n])[:]# Get timestamps for each event
             data["Events"].append({ # Append data to the data variable in JSON format
                     evtNames[n]: event
                     })
@@ -563,7 +561,7 @@ for files in file_list:
 
         	#################   Create New Spike Names   ########################
 
-            exec("channel = hf5.root.sorted_units.%s.channel[:]" %(spkNames[n])) # Get timestamps for each event 
+            channel=getattr(hf5.root.sorted_units,spkNames[n]).channel[:]
             if int(olchan[0]) == int(channel[0]):
                 char = char+1
             else:
@@ -573,7 +571,7 @@ for files in file_list:
     
         	#################   Get Spike Timestamps   ########################
 
-            exec("spiketime = hf5.root.sorted_units.%s.times[:]" %(spkNames[n])) # Get timestamps for each event
+            spiketime=getattr(hf5.root.sorted_units,spkNames[n]).times[:]
             tempSPK = [] # For holding interger type spike times
             for a in range(len(spiketime)): #For all spike times
                 tempSPK.append(spiketime[a].item()) #Convert numpy int64 to int
@@ -583,7 +581,7 @@ for files in file_list:
 
         	#################   Get Spike Waveforms   ########################
     
-            exec("waveform = hf5.root.sorted_units.%s.waveforms[:]" %(spkNames[n]))  # Get timestamps for each event
+            waveform=getattr(hf5.root.sorted_units,spkNames[n]).waveforms[:]
             tempWave = [] # For holding 32 point waveforms
             waveforms = [] # For holding float type waveforms
             for a in range(len(waveform)): # For all waveforms
