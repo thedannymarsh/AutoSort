@@ -92,8 +92,6 @@ for file in logcheck:
   if file.endswith(".log"):
       scp.get(remote_results_filepath+'/'+file,local_path=logs_path)
       sftp.remove(remote_results_filepath+'/'+file)
-
-###
     
     
 ### Preparing files to be ran
@@ -114,10 +112,9 @@ for file in any_files: #if there are no pl2 files to run and no h5 files on the 
 if not any_files=='engage' and start_cluster==0: sys.exit('no files to run')
 
 print("There are", start_cluster, 'uploaded files waiting to run, and',filecount,' files to upload.')
-      
-print("Uploading files to run, and initializing autosort...")
 
 if start_cluster<=clustrun: #if there are not too many files on the cluster
+    print("Uploading files to run, and initializing autosort...")
     runfiles=[] 
     checkfiles=os.listdir(to_run_path) #get the names of the files to be run
     iterfiles=checkfiles.copy() #filelist for iteration
@@ -151,10 +148,10 @@ if start_cluster<=clustrun: #if there are not too many files on the cluster
                 print(file,'cannot be sorted.')
                 shutil.move(running_path+'\\'+file,completed_path+'\\'+file)
                 shutil.move(running_path+'\\'+os.path.splitext(file)[0],results_path+'\\'+os.path.splitext(file)[0])
-        if uploaded+start_cluster==clustrun: #if we've reached the file limit
+        if uploaded+start_cluster>=clustrun: #if we've reached the file limit
             break
                
-print("File transfers complete. Closing secure connection")
+print("File transfers complete. Closing secure connection.")
 
 scp.close()
 sftp.close()                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
