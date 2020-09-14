@@ -30,6 +30,11 @@ def do_the_config(path=''):
             print('Default configuration file has been created. You can find it in '+path)
         else: return read_config(path)
 
+def rec_info(fullpath):
+    config=configparser.ConfigParser()
+    config.read(fullpath)
+    return config['METADATA']['Recording Type']
+
 def default_config(path):
     if not os.path.isdir(os.path.split(path)[0]):
         os.mkdir(os.path.split(path)[0])

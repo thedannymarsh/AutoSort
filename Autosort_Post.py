@@ -87,7 +87,7 @@ hdf5_name = ''
 first = True # Indicating first file
 
 for files in file_list:
-    file_iso=pd.DataFrame(columns=['IsoRating','File','Channel','Solution','Cluster','wf count','ISIs (%)','L-Ratio','Post-Process Date'])
+    file_iso=pd.DataFrame(columns=['IsoRating','File','Channel','Solution','Cluster','wf count','ISIs (%)','L-Ratio','Post-Process Date','Recording Type'])
     skip = False # Set skipping already done files to false
     if files[-2:] == 'h5': # If a specific file is an .h5 file
         hdf5_name = files # Make that the current file
@@ -603,6 +603,7 @@ for files in file_list:
             elif len(infofile)==0:
                 sys.exit("If you don't have an infofile, you should be using an older version of the postprocess script")
             else:
+                file_iso['Recording Type']=config_handler.rec_info(filedir+'/'+os.path.splitext(hdf5_name)[0]+'/'+infofile[0])
                 shutil.copy(filedir+'/'+os.path.splitext(hdf5_name)[0]+'/'+infofile[0],'R:/Autobots Roll Out/'+UserName+'/Info_Files')
         except Exception as e:
             print(e)

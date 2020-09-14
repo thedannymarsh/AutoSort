@@ -15,7 +15,7 @@ import pandas as pd
 import os
 import shutil
 import sys
-from pypl2.pypl2api import pl2_ad, pl2_events, pl2_info # Used to obtain info from Pl2 files
+from pypl2.pypl2api import pl2_ad, pl2_events, pl2_info, pl2_spikes # Used to obtain info from Pl2 files
 import tables            # Used to read the hdf5 files
 import pypl2.Clustering as clust # Used to perform clustering analysis
 from scipy.spatial.distance import mahalanobis  # Used to get distance between clusters
@@ -32,20 +32,24 @@ import configparser
 from datetime import date
 import traceback
 import warnings
+from scipy.interpolate import interp1d
 import time
 
 
 
 def infofile(pl2_filename,path,sort_time,AS_file,params):
     #dumps run info to a .info file
+    with tables.open_file(os.path.splitext(pl2_filename)[0]+'.h5', 'r') as hf5:
+        if hf5.root.__contains__('/SPKC'): record_type='Continuous Signal'
+        else: record_type='Thresholded Waveforms' 
     config = configparser.ConfigParser()
-    config['METADATA']={'Pl2 File':pl2_filename, 'Run Time':sort_time, 'Creator Script': AS_file,'Run Date':date.today().strftime("%m/%d/%y")}
+    config['METADATA']={'Pl2 File':pl2_filename, 'Recording Type':record_type, 'Run Time':sort_time, 'Creator Script': AS_file,'Run Date':date.today().strftime("%m/%d/%y")}
     config['PARAMS USED']=params
     with open(path+'/'+os.path.splitext(pl2_filename)[0]+'_'+'sort.info','w') as infofile:
         config.write(infofile)
 
  
-def pl2_to_h5(filename,filedir,min_licks=1000):
+def pl2_to_h5(file,filedir,min_licks=1000):
     
     ##################  Functions  ######################
     # Getting continuous data from pl2 file and creating folders
@@ -56,17 +60,7 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
 
         
         return (spkcNames)
-    
-    # Run if no continuous data was recored
-    def NoContinuous():
-        try:
-            os.mkdir(filename[:-4])
-        except:
-            pass
-        f= open("%s\\NoCellSortingRunOnThisFile.txt" %filename[:-4],"w+") # Create text file
-        f.write("This file has no continuous spike data and so no cell sorting can be run.") # Notify that no continuous data was recorded
-        f.close() # Close text file
-        
+     
     # Run if less than 1000 licks were recorded
     def NotEnoughLicks():
         try:
@@ -96,14 +90,13 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
   
     ###########################################################################################
     ####################################  Obtain Data  ########################################
-    filename = filedir + '\\' + filename
+    filename = filedir + '\\' + file
     print("Working on file: %s" % filename)
     
     if os.path.exists(filename[:-4] + ".h5") == False: # Run preprocessing step only if it has not already been done
         #Get file info
         os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
         spkinfo, evtinfo, adinfo = pl2_info(filename)
-        del spkinfo # Delete unnecessary variables
 
 
         ##########   Event Data   ##########    
@@ -139,15 +132,15 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
             if (evtNames[n] == 'Lick') | (evtNames[n] == 'lick'): # When events gets to lick event
                 l = n # Identify which event is lick
         try:
-            if len(evtTimes[l]) < min_licks: # Check and see if there are enough licks
+            if len(evtTimes[l]) < min_licks and 'l' in locals(): # Check and see if there are enough licks
                 NotEnoughLicks() # Run this function
                 del evtinfo, currEvt, evtNames, evtTimes, adinfo # Delete unnecessary variables
                 return
+            del l
         except:
             pass
-
-        del evtinfo, currEvt, l # Delete unnecessary variables
-
+        
+        del evtinfo, currEvt # Delete unnecessary variables
 
         ##################  Set Up HDF5 File and Save Events  ######################
         # Initiallize dhf5 file
@@ -157,16 +150,15 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
         hf5 = tables.open_file(filename[:-4]+ '.h5', 'w', title = hdf5_name[-1][:-4])
         hf5.create_group('/', 'filename', filename)
         hf5.create_group('/', 'events')
-        hf5.create_group('/', 'SPKC')
         hf5.create_group('/', 'SpikeTimes')
         hf5.create_group('/', 'SpikeValues')
+ 
     
         # Input event and spkc arrays into file and close
         print("Currently saving events.")
         for n in range(len(evtNames)):
             hf5.create_array('/events', evtNames[n], evtTimes[n]) # Save event data
         del evtNames, evtTimes  # Delete unnecessary variables
-        hf5.close()
 
         ##########   Continuous Data   ##########
         # Get all continuous spike (SPKC) channels from continuous channels
@@ -200,12 +192,7 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
             elif ad == True: # If originally plx and analog-to-digital (ad) data was recorded
                 spkcNames = getSPKC(2, b'AD') # Add to set list  
             else: # If no spkc or wb was recorded
-                NoContinuous()
                 del adinfo
-                return
-                #spkinfo, evtinfo, adinfo = pl2_info(filename)
-                #del evtinfo, adinfo # Delete unnecessary variables
-                #spNames = getSP() # Add to set list
             if con == True:
                 for n in range(len(spkcNames)): # For each spkc channel
                     spkcNames[n] = str(spkcNames[n])[2:-1] # Convert to string format
@@ -230,11 +217,11 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
             elif ad == True: # If originally plx and ad data was recorded
                 spkcNames = getSPKC(2, 'AD') # Add to set list  
             else: # If no spkc or wb was recorded
-                NoContinuous()
                 del adinfo
         del spkc, wb, ad
         
         if con == True:
+            hf5.create_group('/', 'SPKC') #for continuous
             print("\nContinuous A/D Channel Info from pl2_info()"\
                   "\nChannel Name    Frequency   Count"\
                   "\n-------------  ----------- ----------")
@@ -251,17 +238,31 @@ def pl2_to_h5(filename,filedir,min_licks=1000):
                 hf5 = tables.open_file(filename[:-4]+ '.h5', 'r+') # Open dhf5 file
                 hf5.create_array('/SPKC', 'SPKC%02d' % n, spkcValues) # Save spkc data
                 hf5.close()
-            del adinfo, currSpkc, spkcValues, hdf5_name, n # Delete unnecessary variables
+            del spkinfo, adinfo, currSpkc, spkcValues, hdf5_name, n # Delete unnecessary variables
         else:
-            sys.exit("Tell Steve he should have recorded continuous data...")
+            hf5.create_group('/', 'SPKwf') #for noncontinuous
+            print("\nThresholded Waveforms from pl2_info()"\
+                  "\nChannel Name    Spike Count"\
+                  "\n-------------   ------------")
+            for chan in np.sort([chan.name.decode("utf-8") for chan in spkinfo]):
+                os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
+                spikes = pl2_spikes(filename, str(chan))
+                adj_spk=[[value*1000000 for value in spike] for spike in spikes.waveforms]
+                print("{:<15} {}".format(str(chan), spikes.n))
 
+                ##################  Save Spikes to HDF5 File  ######################
+                # This step is performed after each channel is obtained to limit amount of RAM used
+                #FLAG: HERE IS WHERE I STOPPED
+                os.chdir(filedir) # Change directory
+                hf5 = tables.open_file(filename[:-4]+ '.h5', 'r+') # Open dhf5 file
+                hf5.create_array('/SPKwf', chan , adj_spk) # Save spkc data
+                hf5.create_array('/SPKwf', chan+'times' , spikes.timestamps) # Save spkc data
+                hf5.close()
+            del spikes, adj_spk, hdf5_name, n # Delete unnecessary variables
+        print("Preprocessing Complete for {}".format(file))
     else: # If the h5 file has already been created
         print("h5 file already created, skipping that step")
-
-
-    #####################  Dump Everything And Start The Processing  #############################
-    # Make a directory for dumping files talking about memory usage in Pl2_processing.py
-    print("Currently dumping files.")
+    
 
 
 def Processing(electrode_num,pl2_fullpath, params): # Define function
@@ -275,7 +276,6 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     while True:
         try:
             filename=os.path.splitext(pl2_fullpath)[0]+'\n'
-            #print(filename)
          
             filedir=[os.path.split(pl2_fullpath)[0]+'\n']
             
@@ -329,70 +329,94 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             
             # Open up hdf5 file, and load this electrode number
             hf5 = tables.open_file(hdf5_name, 'r')
-            spkc=getattr(hf5.root.SPKC,'SPKC'+f'{electrode_num:02d}')[:]
-            hf5.close()
-            
-            # High bandpass filter the raw electrode recordings
-            filt_el = clust.get_filtered_electrode(spkc, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
-            
-            # Delete raw electrode recording from memory
-            del spkc
-            
-            # Calculate the 3 voltage parameters
-            breach_rate = float(len(np.where(filt_el>voltage_cutoff)[0])*int(sampling_rate))/len(filt_el)
-            test_el = np.reshape(filt_el[:int(sampling_rate)*int(len(filt_el)/sampling_rate)], (-1, int(sampling_rate)))
-            breaches_per_sec = [len(np.where(test_el[i] > voltage_cutoff)[0]) for i in range(len(test_el))]
-            breaches_per_sec = np.array(breaches_per_sec)
-            secs_above_cutoff = len(np.where(breaches_per_sec > 0)[0])
-            if secs_above_cutoff == 0:
-                mean_breach_rate_persec = 0
-            else:
-                mean_breach_rate_persec = np.mean(breaches_per_sec[np.where(breaches_per_sec > 0)[0]])
-            
-            # And if they all exceed the cutoffs, assume that the headstage fell off mid-experiment
-            recording_cutoff = int(len(filt_el)/sampling_rate)
-            if breach_rate >= max_breach_rate and secs_above_cutoff >= max_secs_above_cutoff and mean_breach_rate_persec >= max_mean_breach_rate_persec:
-                # Find the first 1 second epoch where the number of cutoff breaches is higher than the maximum allowed mean breach rate 
-                recording_cutoff = np.where(breaches_per_sec > max_mean_breach_rate_persec)[0][0]
-            
-            # Dump a plot showing where the recording was cut off at
-            fig = plt.figure()
-            plt.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
-            plt.plot((recording_cutoff, recording_cutoff), (np.min(np.mean(test_el, axis = 1)), np.max(np.mean(test_el, axis = 1))), 'k-', linewidth = 4.0)
-            plt.xlabel('Recording time (secs)')
-            plt.ylabel('Average voltage recorded per sec (microvolts)')
-            plt.title('Recording cutoff time (indicated by the black horizontal line)')
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/cutoff_time.png' % (electrode_num+1), bbox_inches='tight')
-            plt.close("all")
-            
-            # Then cut the recording accordingly
-            filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
-            
-            # Slice waveforms out of the filtered electrode recordings
-            slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
-            
-            # Delete filtered electrode from memory
-            del filt_el, test_el
-
-            if len(slices)==0 or len(spike_times)==0:
-                with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
-                    txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
-                    warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
-                    return
+            if hf5.root.__contains__('/SPKC'): #if continuous data was recorded
+                    
+                spkc=getattr(hf5.root.SPKC,'SPKC'+f'{electrode_num:02d}')[:]
+                hf5.close()
                 
+                # High bandpass filter the raw electrode recordings
+                filt_el = clust.get_filtered_electrode(spkc, freq = [bandpass_lower_cutoff, bandpass_upper_cutoff], sampling_rate = sampling_rate)
+                
+                # Delete raw electrode recording from memory
+                del spkc
+                
+                # Calculate the 3 voltage parameters
+                breach_rate = float(len(np.where(filt_el>voltage_cutoff)[0])*int(sampling_rate))/len(filt_el)
+                test_el = np.reshape(filt_el[:int(sampling_rate)*int(len(filt_el)/sampling_rate)], (-1, int(sampling_rate)))
+                breaches_per_sec = [len(np.where(test_el[i] > voltage_cutoff)[0]) for i in range(len(test_el))]
+                breaches_per_sec = np.array(breaches_per_sec)
+                secs_above_cutoff = len(np.where(breaches_per_sec > 0)[0])
+                if secs_above_cutoff == 0:
+                    mean_breach_rate_persec = 0
+                else:
+                    mean_breach_rate_persec = np.mean(breaches_per_sec[np.where(breaches_per_sec > 0)[0]])
+                
+                # And if they all exceed the cutoffs, assume that the headstage fell off mid-experiment
+                recording_cutoff = int(len(filt_el)/sampling_rate)
+                if breach_rate >= max_breach_rate and secs_above_cutoff >= max_secs_above_cutoff and mean_breach_rate_persec >= max_mean_breach_rate_persec:
+                    # Find the first 1 second epoch where the number of cutoff breaches is higher than the maximum allowed mean breach rate 
+                    recording_cutoff = np.where(breaches_per_sec > max_mean_breach_rate_persec)[0][0]
+                
+                # Dump a plot showing where the recording was cut off at
+                fig = plt.figure()
+                plt.plot(np.arange(test_el.shape[0]), np.mean(test_el, axis = 1))
+                plt.plot((recording_cutoff, recording_cutoff), (np.min(np.mean(test_el, axis = 1)), np.max(np.mean(test_el, axis = 1))), 'k-', linewidth = 4.0)
+                plt.xlabel('Recording time (secs)')
+                plt.ylabel('Average voltage recorded per sec (microvolts)')
+                plt.title('Recording cutoff time (indicated by the black horizontal line)')
+                fig.savefig(hdf5_name[:-3] +'/Plots/%i/cutoff_time.png' % (electrode_num+1), bbox_inches='tight')
+                plt.close("all")
+                
+                # Then cut the recording accordingly
+                filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
+                
+                # Slice waveforms out of the filtered electrode recordings
+                slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
+                
+                # Delete filtered electrode from memory
+                del filt_el, test_el
+                
+                slices_final, times_final = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
+                
+                if len(slices)==0 or len(spike_times)==0:
+                    with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
+                        txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        return
+                        
+                # Delete the original slices and times now that dejittering is complete
+                del slices; del spike_times
+            else: #if no continuous data was recorded
+                slices=np.array(getattr(hf5.root.SPKwf,'SPK'+f'{electrode_num+1:02d}')[:]) #get spike slices
+                times_final=np.array(getattr(hf5.root.SPKwf,'SPK'+f'{electrode_num+1:02d}'+'times')[:])*sampling_rate #get spike times
+                hf5.close() #close the h5 file
+                if len(slices)==0 or len(times_final)==0: # if there are no spikes, record as such
+                    with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
+                        txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        return
+                slices_final=[]
+                xnew = np.linspace(0,len(slices[0])-1,len(slices[0])*10)
+                slice_cutoff=np.std(slices)*cutoff_std
+                for i in range(len(slices)): #this loops through each slice and interpolates the waveform
+                    if np.any(np.absolute(slices[i])>slice_cutoff):
+                        continue
+                    f = interp1d(np.arange(0,len(slices[0]),1), slices[i])
+                    ynew = f(xnew)
+                    slices_final.append(ynew)
+                slices_final=np.array(slices_final) #final slices
+                del xnew, f, ynew, slices
+
+                        
             # Dejitter these spike waveforms, and get their maximum amplitudes
-            slices_dejittered, times_dejittered = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
-            amplitudes = np.min(slices_dejittered, axis = 1)
-            
-            # Delete the original slices and times now that dejittering is complete
-            del slices; del spike_times
+            amplitudes = np.min(slices_final, axis = 1)
             
             # Save these slices/spike waveforms and their times to their respective folders
-            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1), slices_dejittered)
-            np.save(hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1), times_dejittered)
+            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1), slices_final)
+            np.save(hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1), times_final)
             
             # Scale the dejittered slices by the energy of the waveforms
-            scaled_slices, energy = clust.scale_waveforms(slices_dejittered)
+            scaled_slices, energy = clust.scale_waveforms(slices_final)
             
             # Run PCA on the scaled waveforms
             pca_slices, explained_variance_ratio = clust.implement_pca(scaled_slices)
@@ -437,7 +461,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 return
             warnings.warn("Warning, could not allocate memory for electrode {}. This program will wait and try again in a bit.".format(electrode_num+1))
             retried=1
-            time.sleep(300)
+            time.sleep(1200)
         except: 
             traceback.print_exc()
             return
@@ -510,11 +534,11 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
         # Additionally plot the ISI distribution of each cluster 
         os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs' % ((electrode_num+1), i+3))
-        x = np.arange(len(slices_dejittered[0])/10) + 1
+        x = np.arange(len(slices_final[0])/10) + 1
         ISIList=[]
         for cluster in range(i+3):
             cluster_points = np.where(predictions[:] == cluster)[0]
-            fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_dejittered[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"_datashader_temp_el" + str(electrode_num+1))
+            fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_final[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"_datashader_temp_el" + str(electrode_num+1))
             ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
             ax.set_ylabel('Voltage (microvolts)')
             ax.set_title('Cluster%i' % cluster)
@@ -523,7 +547,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.close("all")
             
             fig = plt.figure()
-            cluster_times = times_dejittered[cluster_points]
+            cluster_times = times_final[cluster_points]
             ISIs = np.ediff1d(np.sort(cluster_times))
             ISIs = ISIs/40.0
             plt.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
@@ -596,7 +620,7 @@ def superplots(full_filename,maxclust):
                     im_all=cv2.hconcat([wf,im_v]) #continued concatenation
                     cv2.imwrite(finalpath+'/Cluster_'+str(cluster)+'.png',im_all) #save the image
         except Exception as e:
-            print("Could not create superplots for channel " +channel+ ". Encountered the following error: "+e)
+            print("Could not create superplots for channel " +channel+ ". Encountered the following error: "+str(e))
             
 
 def compile_isoi(full_filename,maxclust=7,Lrat_cutoff=.1):
