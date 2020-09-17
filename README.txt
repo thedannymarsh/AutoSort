@@ -3,7 +3,7 @@ Copyright (C) 2019-2020 Patricia Di Lorenzo & the Di Lorenzo Lab
 
 This python repository is a semi-supervised spike sorting/clustering algorithm adapted from the methods and code described in Mukherjee, Wachutka, & Katz (2017).
 
-This program is designed to sort spikes into single, isolated units from continous electrophysiological recordings. Its main method of input is pl2 files, however, one could use it on other filetypes if the data were preprocessed into the necessary format (.h5 file containing the continuous signal from each electrode to be analyzed). Due to the limitations of the api used to parse data from .pl2 files, if this filetype is used, the program must be run on a windows computer. Otherwise it may be run on a Linux system.
+This program is designed to sort spikes into single, isolated units from electrophysiological recordings. Its main method of input is pl2 files, however, one could use it on other filetypes if the data were preprocessed into the necessary format (.h5 file containing the continuous signal  or thresholded waveforms from each electrode to be analyzed). Due to the limitations of the api used to parse data from .pl2 files, if this filetype is used, the program must be run on a windows computer. Otherwise it may be run on a Linux system.
 
 For more information or questions, please contact Daniel Marshall (dmarshal at binghamton dot edu)
 
@@ -11,7 +11,7 @@ For more information or questions, please contact Daniel Marshall (dmarshal at b
 
 The following describes installation for the primary functionality of the program (Sorting units from pl2 files and storing as .nex files). Accessory scripts and utilities are described later.
 
--Autosort_Main.py: This is the workhorse of this program. This script will take .pl2 format electrophysiological recordings (and behavioral data), package their information into h5 files, parse action potentials from the continuous signal, and perform automated sorting on these spikes. The output will be a folder containing plots and data associated with the sort. 
+-Autosort_Main.py: This is the workhorse of this program. This script will take .pl2 format electrophysiological recordings (and behavioral data), package their information into h5 files, parse action potentials if using continuous signal, and perform automated sorting on these spikes. The output will be a folder containing plots and data associated with the sort. 
 
 -Autosort_Post.py: This script utilizes a GUI, and allows the user to postprocess sorted files. The user may mark clusters as units, merge clusters, or split clusters. Once the user has marked all of the units for each file, the script packages the data into a .json file.
 
@@ -20,7 +20,7 @@ The following describes installation for the primary functionality of the progra
 -pypl2: This library contains all of the necessary modules to run these scripts.
 
 ###Usage
-
+`
 1) Processing
 
 Once all your configuration paramters have been set, usage is as follows:
@@ -64,11 +64,11 @@ Note: This step requires the presence of both the .h5 files, as well as the outp
 
 ###Pipeline
 The sorting pipeline functions as follows:
--Pre-Processing: Continuous signal data (and behavioral data) is extracted from .pl2 files and packaged into .h5 files.
--Processing: The continuous electrode signal is analyzed in the processing step, which involves the following (for more detailed information, see Mukherjee et al (2017)):
-	-The electrode signal is cleaned and filtered
-	-Waveforms are extracted from this signal
-	-Waveforms are cleaned
+-Pre-Processing: Continuous signal data (and behavioral data) or thresholded waveforms are extracted from .pl2 files and packaged into .h5 files.
+-Processing: The electrode signal is analyzed in the processing step, which involves the following (for more detailed information, see Mukherjee et al (2017)):
+	-The electrode signal is cleaned and filtered (continuous only)
+	-Waveforms are extracted from this signal(continuous only)
+	-Waveforms are cleaned (continuous only) 
 	-Waveforms are normalized based on energy
 	-Principal components are calculated
 	-Gaussian mixture modeling is performed with several target component counts, using principal components, as well as waveform energy and amplitude

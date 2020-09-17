@@ -262,6 +262,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         print("Preprocessing Complete for {}".format(file))
     else: # If the h5 file has already been created
         print("h5 file already created, skipping that step")
+    tables.file._open_files.close_all()
     
 
 
@@ -284,11 +285,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         
             # find the hdf5 (.h5) file
             hdf5_name = filename[:-1] + '.h5'
-            #print("Opening file " + hdf5_name)
-            
-        
-            
-            #print("Analyzing electrode number " + str(electrode_num+1))
+
             # Check if the directories for this electrode number exist - if they do, delete them (existence of the directories indicates a job restart on the cluster, so restart afresh)
             if os.path.isdir(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)):
                 shutil.rmtree(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1))
@@ -465,6 +462,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         except: 
             traceback.print_exc()
             return
+    tables.file._open_files.close_all()    
               
     # Run GMM, from 3 to max_clusters
     for i in range(max_clusters-2):
