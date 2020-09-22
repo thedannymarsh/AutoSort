@@ -30,6 +30,7 @@ The following describes installation for the primary functionality of the progra
     - The script will create h5 files and a folder of data. Keep both of these, as they are both needed for Post-Processing.
 
 2) Analysis
+
     The primary folder used for analysis will be the 'superplots' folder. All of these plots may be found in the 'Plots' folder, but in superplots they are compiled for user convenience. Additionally, the .info file contains information about the sort run, and the clustering_results_compiled_isoi.xlsx file contains information about each cluster in the sort. To consider a unit isolated, the following criteria must be met:
 	- 1 millisecond ISIs (Inter-Spike Intervals) must be less than or equal to .5%
 	- The waveform must be cellular
@@ -54,11 +55,13 @@ The following describes installation for the primary functionality of the progra
 
 
 3) Post-Processing
+
     Use of this script (Autosort_Post.py) is moderated by a GUI, and as such, this step is relatively straightforward. Run the script, and you will be asked to navigate to the folder containing your h5 files. You will then be directed to choose unit information to indicate isolated units (you may also split or merge clusters in this step). Indicating a unit to be not isolated at any point during this process will return you to electrode selection without saving data. One you have finished indicating all units for a file, the results will be packaged as a .json file
    
    Note: This step requires the presence of both the .h5 files, as well as the output folders from the Processing step
 
 4) Json to Nex conversion
+
 Running this script will convert your .json files into .nex files for response analysis
 
 ## Pipeline
@@ -142,7 +145,7 @@ random restarts - Integer. Number of random restarts for GMM (Default = 10)
 
 ##### Post Process
 - reanalyze - Logical. Choose 0 to be queried as to whether or not you want to go over previously done files. Choose 1 to automatically skip this step (Default = 0)
-- simple gmm - Logical. Choose 0 to be asked to enter all GMM parameters. Choose 1 to only be asked for cluster count when re-clustering. The paramters from your config file will then be utilized. (Default = 1)
+- simple gmm - Logical. Choose 0 to be asked to enter all GMM parameters. Choose 1 to only be asked for cluster count when re-clustering. The parameters from your config file will then be utilized. (Default = 1)
 - image size - Integer representing the size of the image to be created for use in postprocessing. (Default = 70)
 - temporary dir - Directory where images will be temporarily stored while post-processing
 
