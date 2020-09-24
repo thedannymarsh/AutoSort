@@ -95,7 +95,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
     
     if os.path.exists(filename[:-4] + ".h5") == False: # Run preprocessing step only if it has not already been done
         #Get file info
-        os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
+        os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
         spkinfo, evtinfo, adinfo = pl2_info(filename)
 
 
@@ -166,7 +166,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         # We only want SPKC channels if it is present. WB or AD data will be acceptable if SPKC is not
         
         # Determine format and convert to string format if necessary
-        os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
+        os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
         spkc = False # Initially set spkc data to false
         wb = False # Initially set wb data to false
         ad = False # Initially set ad data to false
@@ -227,7 +227,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
                   "\n-------------  ----------- ----------")
                         # Display all SPKC channels and values. This will take a little while for each channel
             for n in range(len(spkcNames)):
-                os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
+                os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
                 currSpkc = pl2_ad(filename, spkcNames[n])
                 spkcValues = np.array(currSpkc.ad)*1000000
                 print("{:<15} {:<11} {}".format(spkcNames[n], int(currSpkc.adfrequency),  currSpkc.n))
@@ -245,7 +245,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
                   "\nChannel Name    Spike Count"\
                   "\n-------------   ------------")
             for chan in np.sort([chan.name.decode("utf-8") for chan in spkinfo]):
-                os.chdir("C:\ProgramData\Anaconda3\Lib\site-packages\pypl2") # Must change directory to where the dll files are stored
+                os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
                 spikes = pl2_spikes(filename, str(chan))
                 adj_spk=[[value*1000000 for value in spike] for spike in spikes.waveforms]
                 print("{:<15} {}".format(str(chan), spikes.n))

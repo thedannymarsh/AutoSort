@@ -12,7 +12,7 @@ import warnings
 import easygui
 import traceback
 
-path=r'R:\Daniel\Current Projects' 
+path=r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted' 
 
 if __name__ == '__main__':
     num_cpu=1
