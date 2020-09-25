@@ -86,7 +86,8 @@ if __name__ == '__main__':
         hdf5_name = filename[:-4] + '.h5' #open h5 file and get electrode count
         print("Opening file " + hdf5_name)
         hf5 = tables.open_file(hdf5_name, 'r')
-        elNum = len(hf5.list_nodes("/SPKC"))
+        if hf5.root.__contains__('/SPKC'): elNum = len(hf5.list_nodes("/SPKC"))
+        else: elNum = len(hf5.list_nodes("/SPKwf"))
         hf5.close()
         # Create directories to store waveforms, spike times, clustering results, and plots
         if not os.path.isdir(hdf5_name[:-3]): #create empty directories for data
