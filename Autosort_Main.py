@@ -87,7 +87,8 @@ if __name__ == '__main__':
         print("Opening file " + hdf5_name)
         hf5 = tables.open_file(hdf5_name, 'r')
         if hf5.root.__contains__('/SPKC'): elNum = len(hf5.list_nodes("/SPKC"))
-        else: elNum = len(hf5.list_nodes("/SPKwf"))
+        else: elNum = int(len(hf5.list_nodes("/SPKwf"))/2)
+        sys.exit()
         hf5.close()
         # Create directories to store waveforms, spike times, clustering results, and plots
         if not os.path.isdir(hdf5_name[:-3]): #create empty directories for data
