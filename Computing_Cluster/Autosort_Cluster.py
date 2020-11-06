@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 reruns+=1
                 bad_runs=[]
                 for chan in range(1,elNum+1):
-                    if not os.path.isfile(os.path.splitext(filename)[0]+'/Plots/'+str(chan)+'/7_clusters_waveforms_ISIs/Cluster6_waveforms.png'):
+                    if not os.path.isfile(os.path.splitext(filename)[0]+'/clustering_results/electrode {}'.format(str(chan))+'/success.txt'):
                         bad_runs.append(chan)
                 if len(bad_runs)==0:
                     print("All channels were sorted successfully!")
@@ -111,7 +111,7 @@ if __name__ == '__main__':
             #superplots
             bad_runs=[]
             for chan in range(1,elNum+1): #check again for bad runs
-                if not os.path.isfile(os.path.splitext(filename)[0]+'/Plots/'+str(chan)+'/7_clusters_waveforms_ISIs/Cluster6_waveforms.png'):
+                if not os.path.isfile(os.path.splitext(filename)[0]+'/clustering_results/electrode {}'.format(str(chan))+'/success.txt'):
                     bad_runs.append(chan)
             if len(bad_runs)>0: #If there are bad runs don't make superplots
                 warnings.warn("Warning: Sort unsuccessful on at least one channel!")

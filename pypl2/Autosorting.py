@@ -472,7 +472,14 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         except:
             #print "Clustering didn't work - solution with %i clusters most likely didn't converge" % (i+3)
             continue
-    
+        if np.any([len(np.where(predictions[:] == cluster)[0])<n_pc+2 for cluster in range(i+3)]):
+            os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters' % ((electrode_num+1), i+3))
+            os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs' % ((electrode_num+1), i+3))
+            with open(hdf5_name[:-3] +'/Plots/%i/%i_clusters' % ((electrode_num+1), i+3)+'/invalid_sort.txt',"w+") as f:
+                f.write("There are too few waveforms to properly sort this clustering")
+            with open(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs' % ((electrode_num+1), i+3)+'/invalid_sort.txt',"w+") as f:
+                f.write("There are too few waveforms to properly sort this clustering")
+            continue
         # Sometimes large amplitude noise waveforms cluster with the spike waveforms because the amplitude has been factored out of the scaled slices.   
         # Run through the clusters and find the waveforms that are more than wf_amplitude_sd_cutoff larger than the cluster mean. Set predictions = -1 
         #at these points so that they aren't picked up by Pl2_PostProcess
@@ -581,6 +588,9 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             draw.multiline_text((380, 100), text2, font=font,fill=(0,0,0,255),spacing=50)   #draw the text
             isoimg=cv2.cvtColor(np.array(pil_im), cv2.COLOR_RGB2BGR)  #convert back to openCV image
             cv2.imwrite(hdf5_name[:-3] +'/Plots/{}/{}_clusters_waveforms_ISIs/Cluster{}_Isolation.png'.format(electrode_num+1, i+3, cluster),isoimg) #save the image
+    with open(hdf5_name[:-3] +'/clustering_results/electrode {}'.format(electrode_num+1)+'/success.txt','w+') as f:
+        f.write('Congratulations, this channel was sorted successfully')
+        
         
 def superplots(full_filename,maxclust):
     #This function takes all of the plots and conglomerates them
