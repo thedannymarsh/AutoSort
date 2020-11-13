@@ -361,7 +361,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 plt.xlabel('Recording time (secs)')
                 plt.ylabel('Average voltage recorded per sec (microvolts)')
                 plt.title('Recording cutoff time (indicated by the black horizontal line)')
-                fig.savefig(hdf5_name[:-3] +'/Plots/%i/cutoff_time.png' % (electrode_num+1), bbox_inches='tight')
+                fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/cutoff_time.png'.format(electrode_num+1)), bbox_inches='tight')
                 plt.close("all")
                 
                 # Then cut the recording accordingly
@@ -409,8 +409,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             amplitudes = np.min(slices_final, axis = 1)
             
             # Save these slices/spike waveforms and their times to their respective folders
-            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_waveforms.npy' % (electrode_num+1), slices_final)
-            np.save(hdf5_name[:-3] +'/spike_times/electrode %i/spike_times.npy' % (electrode_num+1), times_final)
+            np.save(os.path.normpath(hdf5_name[:-3] +'/spike_waveforms/electrode {}/spike_waveforms.npy'.format(electrode_num+1)), slices_final)
+            np.save(os.path.normpath(hdf5_name[:-3] +'/spike_times/electrode {}/spike_times.npy'.format(electrode_num+1)), times_final)
             
             # Scale the dejittered slices by the energy of the waveforms
             scaled_slices, energy = clust.scale_waveforms(slices_final)
@@ -425,11 +425,11 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             if usepvar==1:n_pc=np.where(cumulvar>pvar)[0][0]+1
             else: n_pc=userpc
             
-            #note need to add userpvar, usepvar, and n_pc to params
+
             # Save the pca_slices, energy and amplitudes to the spike_waveforms folder for this electrode
-            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/pca_waveforms.npy' % (electrode_num+1), pca_slices)
-            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/energy.npy' % (electrode_num+1), energy)
-            np.save(hdf5_name[:-3] +'/spike_waveforms/electrode %i/spike_amplitudes.npy' % (electrode_num+1), amplitudes)
+            np.save(os.path.normpath(hdf5_name[:-3] +'/spike_waveforms/electrode {}/pca_waveforms.npy'.format(electrode_num+1)), pca_slices)
+            np.save(os.path.normpath(hdf5_name[:-3] +'/spike_waveforms/electrode {}/energy.npy'.format(electrode_num+1)), energy)
+            np.save(os.path.normpath(hdf5_name[:-3] +'/spike_waveforms/electrode {}/spike_amplitudes.npy'.format(electrode_num+1)), amplitudes)
             
             
             # Create file for saving plots, and plot explained variance ratios of the PCA
@@ -442,7 +442,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.title('Variance ratios explained by PCs (cumulative)')
             plt.xlabel('PC #')
             plt.ylabel('Explained variance ratio')
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/pca_variance.png' % (electrode_num+1), bbox_inches='tight')
+            fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/pca_variance.png'.format(electrode_num+1)), bbox_inches='tight')
             plt.close("all")
             
             # Make an array of the data to be used for clustering, and delete pca_slices, scaled_slices, energy and amplitudes
@@ -495,8 +495,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
     
         # Make folder for results of i+2 clusters, and store results there
         os.mkdir(hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i' % ((electrode_num+1), i+3))
-        np.save(hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i/predictions.npy' % ((electrode_num+1), i+3), predictions)
-        np.save(hdf5_name[:-3] +'/clustering_results/electrode %i/clusters%i/bic.npy' % ((electrode_num+1), i+3), bic)
+        np.save(os.path.normpath(hdf5_name[:-3] +'/clustering_results/electrode {}/clusters{}/predictions.npy'.format(electrode_num+1, i+3)), predictions)
+        np.save(os.path.normpath(hdf5_name[:-3] +'/clustering_results/electrode {}/clusters{}/bic.npy'.format(electrode_num+1, i+3)), bic)
     
         # Plot the graphs, for this set of clusters, in the directory made for this electrode
         os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters' % ((electrode_num+1), i+3))
@@ -516,7 +516,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                     # Produce figure legend
                     plt.legend(tuple(plt_names), tuple("Cluster %i" % cluster for cluster in range(i+3)), scatterpoints = 1, loc = 'lower left', ncol = 3, fontsize = 8)
                     plt.title("%i clusters" % (i+3))
-                    fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/feature%ivs%i.png' % ((electrode_num+1), i+3, feature2, feature1))
+                    fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/{}_clusters/feature{}vs{}.png'.format(electrode_num+1, i+3, feature2, feature1)))
                     plt.close("all")
     
         for ref_cluster in range(i+3):
@@ -533,7 +533,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.ylabel('Frequency')
             plt.legend(loc = 'upper right', fontsize = 8)
             plt.title('Mahalanobis distance of all clusters from Reference Cluster: %i' % ref_cluster)
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters/Mahalonobis_cluster%i.png' % ((electrode_num+1), i+3, ref_cluster))
+            fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/{}_clusters/Mahalonobis_cluster{}.png'.format(electrode_num+1, i+3, ref_cluster)))
             plt.close("all")
         
         # Create file, and plot spike waveforms for the different clusters. Plot 10 times downsampled dejittered/smoothed waveforms.
@@ -548,7 +548,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             ax.set_ylabel('Voltage (microvolts)')
             ax.set_title('Cluster%i' % cluster)
             # plt.annotate('wf: '+str(len(np.where(predictions[:] == cluster)[0])),(.14,.85),xycoords='figure fraction')
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs/Cluster%i_waveforms' % ((electrode_num+1), i+3, cluster))
+            fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/{}_clusters_waveforms_ISIs/Cluster{}_waveforms'.format(electrode_num+1, i+3, cluster)))
             plt.close("all")
             
             fig = plt.figure()
@@ -558,7 +558,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
             plt.hist(ISIs, bins = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, np.max(ISIs)])
             plt.xlim([0.0, 10.0])
             plt.title("2ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 2.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 2.0)[0]), len(cluster_times)) + '\n' + "1ms ISI violations = %.1f percent (%i/%i)" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0, len(np.where(ISIs < 1.0)[0]), len(cluster_times)))
-            fig.savefig(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs/Cluster%i_ISIs' % ((electrode_num+1), i+3, cluster))
+            fig.savefig(os.path.normpath(hdf5_name[:-3] +'/Plots/{}/{}_clusters_waveforms_ISIs/Cluster{}_ISIs'.format(electrode_num+1, i+3, cluster)))
             plt.close("all") 
             ISIList.append("%.1f" %((float(len(np.where(ISIs < 1.0)[0]))/float(len(cluster_times)))*100.0)  )          
         
@@ -663,5 +663,5 @@ def compile_isoi(full_filename,maxclust=7,Lrat_cutoff=.1):
         worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=AND($G2>1,$H2>{})'.format(str(Lrat_cutoff)),'format':redden}) 
         worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR(AND($G2>.5,$H2>{}),$G2>1)'.format(str(Lrat_cutoff)),'format':orangen})        
         worksheet.conditional_format('A2:H{}'.format(file_isoi.shape[0]+1),{'type':'formula','criteria':'=OR($G2>.5,$H2>{})'.format(str(Lrat_cutoff)),'format':yellen}) 
-        outwrite.save() #need to get the correct ISI column here
+        outwrite.save()
         
