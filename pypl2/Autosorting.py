@@ -39,7 +39,7 @@ import time
 
 def infofile(pl2_filename,path,sort_time,AS_file,params):
     #dumps run info to a .info file
-    with tables.open_file(os.path.splitext(pl2_filename)[0]+'.h5', 'r') as hf5:
+    with tables.open_file(path+'.h5', 'r') as hf5:
         if hf5.root.__contains__('/SPKC'): record_type='Continuous Signal'
         else: record_type='Thresholded Waveforms' 
     config = configparser.ConfigParser()
@@ -70,6 +70,18 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         f= open("%s\\NoCellSortingRunOnThisFile.txt" %filename[:-4],"w+") # Create text file
         f.write("The rat did not lick enough and so cell sorting is irrelevant.") # Notify that no continuous data was recorded
         f.close() # Close text file
+        
+    # Run if less than 1000 licks were recorded
+    def NoSpike():
+        try:
+            os.mkdir(filename[:-4])
+        except:
+            pass
+        f= open("%s\\NoCellSortingRunOnThisFile.txt" %filename[:-4],"w+") # Create text file
+        f.write("There were no spikes found in this file") # Notify that no continuous data was recorded
+        f.close() # Close text file
+     
+    
      
     
     
@@ -97,7 +109,10 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         #Get file info
         os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
         spkinfo, evtinfo, adinfo = pl2_info(filename)
-
+        
+        if spkinfo == ():
+            NoSpike()
+            return
 
         ##########   Event Data   ##########    
         #Get event data on select channels and print out interesting information
@@ -226,6 +241,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
                   "\nChannel Name    Frequency   Count"\
                   "\n-------------  ----------- ----------")
                         # Display all SPKC channels and values. This will take a little while for each channel
+            hf5.close()
             for n in range(len(spkcNames)):
                 os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
                 currSpkc = pl2_ad(filename, spkcNames[n])
@@ -244,6 +260,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
             print("\nThresholded Waveforms from pl2_info()"\
                   "\nChannel Name    Spike Count"\
                   "\n-------------   ------------")
+            hf5.close()
             for chan in np.sort([chan.name.decode("utf-8") for chan in spkinfo]):
                 os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
                 spikes = pl2_spikes(filename, str(chan))
@@ -262,7 +279,6 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         print("Preprocessing Complete for {}".format(file))
     else: # If the h5 file has already been created
         print("h5 file already created, skipping that step")
-    tables.file._open_files.close_all()
     
 
 
