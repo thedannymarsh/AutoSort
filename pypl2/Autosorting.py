@@ -109,10 +109,7 @@ def pl2_to_h5(file,filedir,min_licks=1000):
         #Get file info
         os.chdir(os.path.split(__file__)[0]) # Must change directory to where the dll files are stored
         spkinfo, evtinfo, adinfo = pl2_info(filename)
-        
-        if spkinfo == ():
-            NoSpike()
-            return
+
 
         ##########   Event Data   ##########    
         #Get event data on select channels and print out interesting information
@@ -256,6 +253,13 @@ def pl2_to_h5(file,filedir,min_licks=1000):
                 hf5.close()
             del spkinfo, adinfo, currSpkc, spkcValues, hdf5_name, n # Delete unnecessary variables
         else:
+            if spkinfo == () or sum([sum(x.units) for x in spkinfo]) == 0:
+                try:
+                    hf5.close()
+                    os.remove(filename[:-4]+ '.h5')
+                except: pass
+                NoSpike()
+                return
             hf5.create_group('/', 'SPKwf') #for noncontinuous
             print("\nThresholded Waveforms from pl2_info()"\
                   "\nChannel Name    Spike Count"\
