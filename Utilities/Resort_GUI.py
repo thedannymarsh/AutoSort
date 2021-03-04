@@ -12,7 +12,7 @@ import warnings
 import easygui
 import traceback
 
-path=r'R:\Dannymarsh Sorting Emporium\pl2_to_be_sorted' 
+path=r'D:\VgX\Files\Raw Files VgX\resort' 
 
 if __name__ == '__main__':
     num_cpu=1

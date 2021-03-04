@@ -390,17 +390,17 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 # Slice waveforms out of the filtered electrode recordings
                 slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
                 
-                # Delete filtered electrode from memory
-                del filt_el, test_el
-                
-                slices_final, times_final = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
-                
                 if len(slices)==0 or len(spike_times)==0:
                     with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
                         txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
                         warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
                         return
                         
+                # Delete filtered electrode from memory
+                del filt_el, test_el
+                
+                slices_final, times_final = clust.dejitter(slices, spike_times, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate)
+
                 # Delete the original slices and times now that dejittering is complete
                 del slices; del spike_times
             else: #if no continuous data was recorded

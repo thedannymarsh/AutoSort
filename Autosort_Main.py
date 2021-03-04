@@ -151,6 +151,7 @@ if __name__ == '__main__':
                 bad_runs.append(chan)
         if len(bad_runs)>0: #If there are bad runs don't make superplots or isolation compilation
             warnings.warn("Warning: Sort unsuccessful on at least one channel!")
+            print("Sorting failed on the following channels: {}; superplots will not be created.".format(bad_runs))
         else: #else make the superplots
             try: AS.superplots(filename,int(params['max clusters']))
             except Exception as e: 
