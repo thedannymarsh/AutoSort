@@ -388,12 +388,15 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 filt_el = filt_el[:recording_cutoff*int(sampling_rate)]    
                 
                 # Slice waveforms out of the filtered electrode recordings
-                slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
+                if len(filt_el)==0: slices, spike_times = [],[]
+                else: slices, spike_times = clust.extract_waveforms(filt_el, spike_snapshot = [spike_snapshot_before, spike_snapshot_after], sampling_rate = sampling_rate, STD = STD,cutoff_std=cutoff_std)
                 
                 if len(slices)==0 or len(spike_times)==0:
                     with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
                         txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
                         warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        with open(hdf5_name[:-3] +'/clustering_results/electrode {}'.format(electrode_num+1)+'/success.txt','w+') as f:
+                            f.write('Sorting finished. No spikes found')
                         return
                         
                 # Delete filtered electrode from memory
@@ -411,6 +414,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                     with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
                         txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
                         warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        with open(hdf5_name[:-3] +'/clustering_results/electrode {}'.format(electrode_num+1)+'/success.txt','w+') as f:
+                            f.write('Sorting finished. No spikes found')
                         return
                 slices_final=[]
                 xnew = np.linspace(0,len(slices[0])-1,len(slices[0])*10)
@@ -563,7 +568,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         ISIList=[]
         for cluster in range(i+3):
             cluster_points = np.where(predictions[:] == cluster)[0]
-            fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_final[cluster_points, :], x, dir_name =  hdf5_name[:-3]+"_datashader_temp_el" + str(electrode_num+1))
+            fig, ax = pypl2.Pl2_waveforms_datashader.waveforms_datashader(slices_final[cluster_points, :], x, dir_name =  os.path.normpath(hdf5_name[:-3]+"_datashader_temp_el" + str(electrode_num+1)))
             ax.set_xlabel('Sample ({:d} samples per ms)'.format(int(sampling_rate/1000)))
             ax.set_ylabel('Voltage (microvolts)')
             ax.set_title('Cluster%i' % cluster)
