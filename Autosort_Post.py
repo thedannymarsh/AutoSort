@@ -110,7 +110,6 @@ for files in file_list:
 
         # Open the hdf5 file
         hf5 = tables.open_file(hdf5_name, 'r+')
-        print(hf5)
         # Delete the raw nodes, if they exist in the hdf5 file, to cut down on file size
         if DelOld == True:
             try:
@@ -156,6 +155,8 @@ for files in file_list:
         # Run an infinite loop as long as the user wants to pick clusters from the electrodes	
         while True:
             try:
+                print('Current Units for: {}'.format(hdf5_name))
+                print(file_iso[['Channel','Solution','Cluster','wf count','ISIs (%)','L-Ratio']])   
                 # Get electrode number from user
                 electrode_num = easygui.multenterbox(msg = 'For file %s, which electrode (1-%s) do you want to choose? \nHit cancel to move to the next file' % (hdf5_name[:-3], str(elNum)), fields = ['Electrode #'])
                 # Break if wrong input/cancel command was given

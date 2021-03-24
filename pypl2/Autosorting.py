@@ -554,6 +554,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 y,binEdges=np.histogram(mahalanobis_dist,bins=25)
                 bincenters = 0.5*(binEdges[1:] + binEdges[:-1])
                 plt.plot(bincenters, y, label = 'Dist from cluster %i' % other_cluster)    
+                if other_cluster == ref_cluster: xsave = bincenters
+            plt.xlim([0,max(xsave)+5])
             plt.xlabel('Mahalanobis distance')
             plt.ylabel('Frequency')
             plt.legend(loc = 'upper right', fontsize = 8)
