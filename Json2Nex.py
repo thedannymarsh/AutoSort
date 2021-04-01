@@ -1,3 +1,5 @@
+import sys
+sys.path.append('C:\\ProgramData\\Nex Technologies\\NeuroExplorer 5 x64')
 import nex # Used to generate neuroexplorer commands
 import os # Used to go through directories
 import json # Used to read json files (data is stored in json files)
@@ -29,7 +31,7 @@ for name in filelist: # For all files in directory
             evtData = data['Events'][n] # Get data for one event
 
             tempVar0 = str.split(str(evtData), '[') # Split event data whereever "[" exists
-            evtName = tempVar0[0][3:-3] # Keep event name
+            evtName = tempVar0[0][2:-3] # Keep event name
             doc["Event"] = nex.NewEvent(doc, 0) # Create new event with no timestamps
 
             tempVar1 = tempVar0[1][:-2] # Keep only the timestamps for event
@@ -47,7 +49,7 @@ for name in filelist: # For all files in directory
             spkData = data['Neurons'][n] # Get data for one neuron
 
             tempVar0 = str.split(str(spkData), '[') # Split spike data whereever "[" exists
-            spkName = tempVar0[0][3:-3] # Keep event name
+            spkName = tempVar0[0][2:-3] # Keep event name
             doc["Spike"] = nex.NewEvent(doc, 0) # Create new spike with no timestamps
 
             tempVar1 = tempVar0[1][:-2] # Keep only the timestamps for spike
@@ -74,7 +76,7 @@ for name in filelist: # For all files in directory
         #for n in range(len(allWaves)):
             waveData = data['Waveforms'][n] # Get all waveforms for one neuron
             tempVar0 = str.split(str(waveData), '[') # Split waveform data whereever "[" exists
-            waveName = tempVar0[0][3:-3] # Keep waveform name
+            waveName = tempVar0[0][2:-3] # Keep waveform name
             print(waveName)
             waves = [0]*(len(tempVar0)-2) # To hold all waveforms for a single neuron
             for w in range(2,len(tempVar0)): # For all waveforms
