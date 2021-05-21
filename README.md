@@ -1,5 +1,5 @@
 ## About
-Copyright (C) 2019-2020 Patricia Di Lorenzo & the Di Lorenzo Lab
+Copyright (C) 2019-2021 Patricia Di Lorenzo & the Di Lorenzo Lab
 
 This python repository is a semi-supervised spike sorting/clustering algorithm adapted from the methods and code described in Mukherjee, Wachutka, & Katz (2017).
 
