@@ -393,8 +393,8 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
                 
                 if len(slices)==0 or len(spike_times)==0:
                     with open(hdf5_name[:-3] +'/Plots/'+str(electrode_num+1)+'/'+'no_spikes.txt', 'w') as txt:
-                        txt.write('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
-                        warnings.warn('No spikes were found on this channel. The most likely cause is an early recording cutoff. RIP')
+                        txt.write('No spikes were found on channel {}. The most likely cause is an early recording cutoff. RIP'.format(electrode_num+1))
+                        warnings.warn('No spikes were found on channel {}. The most likely cause is an early recording cutoff. RIP'.format(electrode_num+1))
                         with open(hdf5_name[:-3] +'/clustering_results/electrode {}'.format(electrode_num+1)+'/success.txt','w+') as f:
                             f.write('Sorting finished. No spikes found')
                         return
@@ -497,7 +497,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         except:
             #print "Clustering didn't work - solution with %i clusters most likely didn't converge" % (i+3)
             continue
-        if np.any([len(np.where(predictions[:] == cluster)[0])<n_pc+2 for cluster in range(i+3)]):
+        if np.any([len(np.where(predictions[:] == cluster)[0])<=n_pc+2 for cluster in range(i+3)]):
             os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters' % ((electrode_num+1), i+3))
             os.mkdir(hdf5_name[:-3] +'/Plots/%i/%i_clusters_waveforms_ISIs' % ((electrode_num+1), i+3))
             with open(hdf5_name[:-3] +'/Plots/%i/%i_clusters' % ((electrode_num+1), i+3)+'/invalid_sort.txt',"w+") as f:
@@ -547,7 +547,7 @@ def Processing(electrode_num,pl2_fullpath, params): # Define function
         for ref_cluster in range(i+3):
             fig = plt.figure()
             ref_mean = np.mean(data[np.where(predictions==ref_cluster)],axis=0)
-            ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)],rowvar=False))
+            ref_covar_I = linalg.inv(np.cov(data[np.where(predictions==ref_cluster)[0]],rowvar=False))
             for other_cluster in range(i+3):
                 mahalanobis_dist=[mahalanobis(data[point, :], ref_mean, ref_covar_I) for point in np.where(predictions[:] == other_cluster)[0]]
                 # Plot histogram of Mahalanobis distances
